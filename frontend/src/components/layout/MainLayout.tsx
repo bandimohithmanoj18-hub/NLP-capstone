@@ -12,6 +12,8 @@ interface MainLayoutProps {
   loading: boolean;
   onRefresh: () => void;
   onOpenAuthModal: () => void;
+  language: string;
+  onLanguageChange: (lang: string) => void;
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({
@@ -22,6 +24,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   loading,
   onRefresh,
   onOpenAuthModal,
+  language,
+  onLanguageChange,
 }) => {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -31,9 +35,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         onRefresh={onRefresh}
         onSelectView={onSelectView}
         onOpenAuthModal={onOpenAuthModal}
+        language={language}
+        onLanguageChange={onLanguageChange}
       />
       <div className="flex-1 flex">
-        <Sidebar currentView={currentView} onSelectView={onSelectView} />
+        <Sidebar currentView={currentView} onSelectView={onSelectView} language={language} />
         <main className="flex-1 p-6 sm:p-8 max-w-7xl mx-auto w-full">
           {children}
         </main>

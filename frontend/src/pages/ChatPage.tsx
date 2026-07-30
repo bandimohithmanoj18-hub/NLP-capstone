@@ -14,6 +14,10 @@ import {
   RefreshCw,
   Clock,
   BookOpen,
+  Volume2,
+  VolumeX,
+  Mic,
+  MicOff,
 } from 'lucide-react';
 import {
   ChatSessionSummary,
@@ -33,9 +37,10 @@ import { useAuth } from '../context/AuthContext';
 
 interface ChatPageProps {
   onSelectView: (view: PageView) => void;
+  language: string;
 }
 
-export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView }) => {
+export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) => {
   const { isAuthenticated, user } = useAuth();
 
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
@@ -46,6 +51,8 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView }) => {
   const [inputPrompt, setInputPrompt] = useState<string>('');
   const [selectedDomainFilter, setSelectedDomainFilter] = useState<string>('all');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [speakingMsgId, setSpeakingMsgId] = useState<number | null>(null);
+  const [listening, setListening] = useState<boolean>(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -129,6 +136,82 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView }) => {
     }
   };
 
+  const handleSpeakMessage = (msgId: number, content: string) => {
+    if (speakingMsgId === msgId) {
+      window.speechSynthesis.cancel();
+      setSpeakingMsgId(null);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const plainText = content.replace(/[*#`_\\-]/g, '');
+    const utterance = new SpeechSynthesisUtterance(plainText);
+
+    const voices = window.speechSynthesis.getVoices();
+    let langCode = 'en-IN';
+    if (language === 'hi') langCode = 'hi-IN';
+    if (language === 'ta') langCode = 'ta-IN';
+    if (language === 'te') langCode = 'te-IN';
+
+    const selectedVoice = voices.find((v) => v.lang.startsWith(langCode));
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+    }
+    utterance.lang = langCode;
+
+    utterance.onend = () => {
+      setSpeakingMsgId(null);
+    };
+    utterance.onerror = () => {
+      setSpeakingMsgId(null);
+    };
+
+    setSpeakingMsgId(msgId);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const startVoiceDictation = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Speech Recognition is not supported by your browser.');
+      return;
+    }
+
+    if (listening) {
+      setListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    let langCode = 'en-IN';
+    if (language === 'hi') langCode = 'hi-IN';
+    if (language === 'ta') langCode = 'ta-IN';
+    if (language === 'te') langCode = 'te-IN';
+    recognition.lang = langCode;
+
+    recognition.onstart = () => {
+      setListening(true);
+    };
+
+    recognition.onresult = (event: any) => {
+      const speechToText = event.results[0][0].transcript;
+      setInputPrompt((prev) => (prev ? prev + ' ' + speechToText : speechToText));
+    };
+
+    recognition.onerror = () => {
+      setListening(false);
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+    };
+
+    recognition.start();
+  };
+
   const handleSendMessage = async (e?: React.FormEvent, customText?: string) => {
     if (e) e.preventDefault();
     const promptToSend = customText || inputPrompt;
@@ -150,7 +233,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView }) => {
     );
 
     try {
-      const aiReply = await sendChatMessage(activeSession.id, promptToSend);
+      const aiReply = await sendChatMessage(activeSession.id, promptToSend, language);
       setActiveSession((prev) =>
         prev
           ? {
@@ -202,10 +285,10 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView }) => {
   ];
 
   const quickPrompts = [
-    "I bought an LG refrigerator from Amazon for Rs. 45,000 on 15th June 2026. The compressor failed after 10 days and customer care refused replacement.",
-    "HDFC Bank debited Rs. 75,000 from my credit card without OTP or authorization.",
-    "IndiGo flight from Chennai to Delhi was cancelled without notice and they refused ticket refund.",
-    "Airtel broadband charged Rs. 3,500 extra billing after disconnection request.",
+    "I bought a refrigerator from an online merchant for Rs. 45,000 on 15th June 2026. The compressor failed after 10 days and customer care refused replacement.",
+    "A private bank debited Rs. 75,000 from my credit card without OTP or authorization.",
+    "A domestic flight ticket was cancelled without notice and the airline refused ticket refund.",
+    "A telecom broadband operator charged Rs. 3,500 extra billing after disconnection request.",
   ];
 
   const filteredSessions =
@@ -382,12 +465,25 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView }) => {
                     }`}
                   >
                     {isAssistant && (
-                      <div className="flex items-center space-x-1.5 text-xs font-bold text-blue-700 mb-2 pb-2 border-b border-gray-200">
-                        <Scale className="w-4 h-4" />
+                      <div className="flex items-center space-x-1.5 text-xs font-bold text-blue-700 mb-2 pb-2 border-b border-gray-200 w-full">
+                        <Scale className="w-4 h-4 animate-pulse" />
                         <span>AI Legal Redressal Assistant</span>
-                        <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded font-semibold ml-auto">
+                        <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded font-semibold ml-2">
                           CPA 2019
                         </span>
+                        <button
+                          type="button"
+                          onClick={() => handleSpeakMessage(msg.id, msg.content)}
+                          className="ml-auto px-2 py-1 bg-white hover:bg-gray-100 text-gray-600 hover:text-blue-700 rounded-md border border-gray-200/60 shadow-sm flex items-center space-x-1 font-bold text-[10px] transition-colors"
+                          title="Read message aloud"
+                        >
+                          {speakingMsgId === msg.id ? (
+                            <VolumeX className="w-3.5 h-3.5 text-red-600 animate-pulse" />
+                          ) : (
+                            <Volume2 className="w-3.5 h-3.5 text-blue-600" />
+                          )}
+                          <span>Listen</span>
+                        </button>
                       </div>
                     )}
                     <div className="whitespace-pre-wrap font-sans">{msg.content}</div>
@@ -437,6 +533,18 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView }) => {
               className="flex-1 px-4 py-2.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
               disabled={sending}
             />
+            <button
+              type="button"
+              onClick={startVoiceDictation}
+              className={`p-2.5 rounded-xl border flex items-center justify-center transition-all ${
+                listening
+                  ? 'bg-red-50 border-red-300 text-red-600 animate-pulse shadow-sm'
+                  : 'bg-gray-50 hover:bg-gray-100 border-gray-300 text-gray-600'
+              }`}
+              title="Dictate query using voice"
+            >
+              {listening ? <MicOff className="w-4 h-4 text-red-600 animate-pulse" /> : <Mic className="w-4 h-4 text-gray-500" />}
+            </button>
             <button
               type="submit"
               disabled={sending || !inputPrompt.trim()}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { translations } from './utils/translations';
 import { MainLayout } from './components/layout/MainLayout';
 import { Dashboard } from './pages/Dashboard';
 import { ArchitecturePage } from './pages/ArchitecturePage';
@@ -19,6 +20,12 @@ const AppContent: React.FC = () => {
   const [systemInfo, setSystemInfo] = useState<SystemInfoResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [language, setLanguage] = useState<string>(localStorage.getItem('language') || 'en');
+
+  const handleLanguageChange = (lang: string) => {
+    setLanguage(lang);
+    localStorage.setItem('language', lang);
+  };
 
   const fetchSystemData = useCallback(async () => {
     setLoading(true);
@@ -50,7 +57,7 @@ const AppContent: React.FC = () => {
         },
       });
       setSystemInfo({
-        project_name: 'AI Consumer Complaint & NCH Guidance System',
+        project_name: 'AI Consumer Triage & Redressal Portal',
         version: '1.0.0',
         python_version: '3.13',
         database_url: 'sqlite:///data/app.db',
@@ -144,6 +151,7 @@ const AppContent: React.FC = () => {
             health={health}
             systemInfo={systemInfo}
             onSelectView={setCurrentView}
+            language={language}
           />
         );
       case 'profile':
@@ -151,7 +159,7 @@ const AppContent: React.FC = () => {
       case 'architecture':
         return <ArchitecturePage />;
       case 'chat':
-        return <ChatPage onSelectView={setCurrentView} />;
+        return <ChatPage onSelectView={setCurrentView} language={language} />;
       case 'evidence':
         return <EvidencePage />;
       case 'nch_guidance':
@@ -166,6 +174,7 @@ const AppContent: React.FC = () => {
             health={health}
             systemInfo={systemInfo}
             onSelectView={setCurrentView}
+            language={language}
           />
         );
     }
@@ -179,6 +188,8 @@ const AppContent: React.FC = () => {
       loading={loading}
       onRefresh={fetchSystemData}
       onOpenAuthModal={() => setIsAuthModalOpen(true)}
+      language={language}
+      onLanguageChange={handleLanguageChange}
     >
       {renderContent()}
       <AuthModal

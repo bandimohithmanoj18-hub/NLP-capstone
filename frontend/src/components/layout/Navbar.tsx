@@ -2,6 +2,7 @@ import React from 'react';
 import { Scale, CheckCircle2, AlertCircle, RefreshCw, User as UserIcon, LogOut, LogIn } from 'lucide-react';
 import { HealthCheckResponse, PageView } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { translations } from '../../utils/translations';
 
 interface NavbarProps {
   health: HealthCheckResponse | null;
@@ -9,6 +10,8 @@ interface NavbarProps {
   onRefresh: () => void;
   onSelectView: (view: PageView) => void;
   onOpenAuthModal: () => void;
+  language: string;
+  onLanguageChange: (lang: string) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -17,11 +20,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   onRefresh,
   onSelectView,
   onOpenAuthModal,
+  language,
+  onLanguageChange,
 }) => {
   const { user, isAuthenticated, logout } = useAuth();
+  const t = translations[language] || translations['en'];
 
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
+    <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo & Title */}
@@ -29,30 +35,45 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => onSelectView('dashboard')}
             className="flex items-center space-x-3 cursor-pointer"
           >
-            <div className="p-2 bg-blue-600 rounded-lg text-white">
+            <div className="p-2 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg text-white shadow-sm">
               <Scale className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="font-bold text-gray-900 text-lg sm:text-xl leading-tight">
-                AI Consumer Complaint & NCH Guidance System
+              <h1 className="font-bold text-gray-900 text-base sm:text-lg leading-tight">
+                {t.app_title}
               </h1>
-              <p className="text-xs text-gray-500 font-medium">
-                National Consumer Helpline (NCH) & Consumer Protection Act, 2019
+              <p className="text-[10px] sm:text-xs text-gray-500 font-medium">
+                {t.subtitle}
               </p>
             </div>
           </div>
 
           {/* Right Side Controls */}
           <div className="flex items-center space-x-4">
+            {/* Language Selector Dropdown */}
+            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 space-x-1 shadow-sm">
+              <span className="text-xs text-gray-400">🌐</span>
+              <select
+                value={language}
+                onChange={(e) => onLanguageChange(e.target.value)}
+                className="bg-transparent text-xs font-semibold text-gray-700 focus:outline-none cursor-pointer pr-1"
+              >
+                <option value="en">English</option>
+                <option value="hi">हिन्दी (Hindi)</option>
+                <option value="ta">தமிழ் (Tamil)</option>
+                <option value="te">తెలుగు (Telugu)</option>
+              </select>
+            </div>
+
             {/* Health Status Indicator */}
-            <div className="hidden md:flex items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 space-x-2">
+            <div className="hidden md:flex items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 space-x-2 shadow-sm">
               {health && health.status === 'online' ? (
                 <CheckCircle2 className="w-4 h-4 text-green-600" />
               ) : (
                 <AlertCircle className="w-4 h-4 text-amber-500" />
               )}
               <span className="text-xs font-medium text-gray-700">
-                API: <strong className="text-gray-900">{health ? health.status.toUpperCase() : 'CHECKING...'}</strong>
+                {t.api_status}: <strong className="text-gray-900">{health ? health.status.toUpperCase() : 'CHECKING...'}</strong>
               </span>
               <button
                 onClick={onRefresh}
@@ -75,7 +96,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
                   </div>
                   <span className="max-w-[120px] truncate">{user.full_name || user.email}</span>
-                  <span className="bg-blue-600 text-white px-1.5 py-0.5 rounded text-[9px] uppercase">
+                  <span className="bg-blue-600 text-white px-1.5 py-0.5 rounded text-[9px] uppercase ml-1">
                     {user.is_advocate ? 'Advocate' : 'Consumer'}
                   </span>
                 </button>
@@ -93,7 +114,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors shadow-sm"
               >
                 <LogIn className="w-3.5 h-3.5" />
-                <span>Sign In / Demo</span>
+                <span>{t.sign_in_demo}</span>
               </button>
             )}
           </div>

@@ -11,18 +11,23 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { HealthCheckResponse, SystemInfoResponse, PageView } from '../types';
+import { translations } from '../utils/translations';
 
 interface DashboardProps {
   health: HealthCheckResponse | null;
   systemInfo: SystemInfoResponse | null;
   onSelectView: (view: PageView) => void;
+  language: string;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
   health,
   systemInfo,
   onSelectView,
+  language,
 }) => {
+  const t = translations[language] || translations['en'];
+
   return (
     <div className="space-y-8">
       {/* Hero Banner */}
@@ -30,10 +35,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-2">
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              AI Consumer Complaint & NCH Guidance System
+              {t.app_title}
             </h2>
             <p className="text-blue-100 max-w-2xl text-sm sm:text-base">
-              A comprehensive legal grievance platform combining OCR evidence extraction, RAG-backed NCH (National Consumer Helpline) guidance, and automated legal notice & complaint drafting.
+              A comprehensive consumer dispute redressal platform combining OCR evidence extraction, RAG-backed guidelines, and automated legal notice & complaint drafting.
             </p>
           </div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">

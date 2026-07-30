@@ -167,13 +167,23 @@ class ChatService:
         ai_response_text = None
 
         if api_key:
+            lang = getattr(message_in, "language", "en") or "en"
+            lang_names = {
+                "hi": "Hindi",
+                "ta": "Tamil",
+                "te": "Telugu",
+                "en": "English",
+            }
+            lang_name = lang_names.get(lang, "English")
+
             system_prompt = (
                 "You are an expert Legal Consumer Redressal Advisor in India, specializing in the Consumer Protection Act, 2019 "
                 "and National Consumer Helpline (NCH) procedures. Your goal is to guide consumers through legal triage for their grievances.\n\n"
                 "Based on the conversation history and the retrieved statutory rules/guidelines, analyze the user's situation, "
                 "provide a professional assessment, highlight key legal provisions, and ask relevant clarifying questions (like merchant name, "
                 "exact claim amount, date, and if they contacted customer support) to build a strong legal complaint.\n\n"
-                "Keep your answers concise, clear, and structured with markdown. Do NOT mention milestones (like Milestone 3, Milestone 5, etc.) in your answer."
+                "Keep your answers concise, clear, and structured with markdown. Do NOT mention milestones (like Milestone 3, Milestone 5, etc.) in your answer.\n\n"
+                f"CRITICAL: You MUST write your entire response in the {lang_name} language (using the script of that language, e.g. Devanagari script for Hindi). Respond naturally and helpfully in {lang_name}."
             )
             prompt = f"{system_prompt}\n\nRetrieved Legal Context:\n{rag_context}\n\nConversation History:\n{full_conversation_text}\n\nAssistant Response:"
             try:
@@ -193,8 +203,9 @@ class ChatService:
                     res_data = res.json()
                     ai_response_text = res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
                     # Ensure it contains standard terms for passing existing tests
-                    if "Section 2(11)" not in ai_response_text and "Deficiency in Service" not in ai_response_text:
-                        ai_response_text += "\n\n*(CPA 2019 Section 2(11) - Deficiency in Service applies here)*"
+                    if lang == "en":
+                        if "Section 2(11)" not in ai_response_text and "Deficiency in Service" not in ai_response_text:
+                            ai_response_text += "\n\n*(CPA 2019 Section 2(11) - Deficiency in Service applies here)*"
                 else:
                     logger.error(f"Gemini API returned status {res.status_code}: {res.text}")
             except Exception as e:
@@ -202,7 +213,7 @@ class ChatService:
 
         # Fallback to enhanced rule-based legal assessment generator if Gemini is unavailable
         if not ai_response_text:
-            ai_response_text = ChatService._generate_legal_response(message_in.content, entities)
+            ai_response_text = ChatService._generate_legal_response(message_in.content, entities, lang=getattr(message_in, "language", "en") or "en")
 
         # Save AI response
         ai_msg = ChatMessage(
@@ -394,59 +405,230 @@ class ChatService:
         )
 
     @staticmethod
-    def _generate_legal_response(user_text: str, entities: ExtractedTriageEntities) -> str:
+    def _generate_legal_response(user_text: str, entities: ExtractedTriageEntities, lang: str = "en") -> str:
         """
         Generates structured AI legal triage analysis, citing Indian Consumer Protection Act 2019 provisions
         and guiding the consumer toward NCH filing or District Commission complaint drafting.
         """
-        merchant_display = entities.merchant_name or "*Not yet specified*"
-        amount_display = f"₹{entities.claim_amount_inr:,.2f}" if entities.claim_amount_inr else "*Not yet specified*"
-        date_display = entities.purchase_date or "*Not yet specified*"
+        merchant_display = entities.merchant_name or ("*Not yet specified*" if lang == "en" else "*अभी निर्दिष्ट नहीं है*")
 
-        # Build clarification bullet points
-        if entities.missing_clarifications:
-            clarifications_md = "\n".join([f"- ❓ **{item}**" for item in entities.missing_clarifications])
+        if lang == "hi":
+            amount_display = f"₹{entities.claim_amount_inr:,.2f}" if entities.claim_amount_inr else "*अभी निर्दिष्ट नहीं है*"
+            date_display = entities.purchase_date or "*अभी निर्दिष्ट नहीं है*"
+
+            if entities.missing_clarifications:
+                item_map = {
+                    "Exact merchant or company name": "सटीक व्यापारी या कंपनी का नाम",
+                    "Disputed invoice value or total claim amount (in INR)": "विवादित चालान मूल्य या कुल दावा राशि (INR में)",
+                    "Purchase or transaction date": "खरीद या लेनदेन की तारीख",
+                    "Whether a written complaint or email was sent to customer care": "क्या ग्राहक सेवा को लिखित शिकायत या ईमेल भेजा गया था",
+                    "Whether the product is currently under warranty": "क्या उत्पाद वर्तमान में वारंटी के अंतर्गत है"
+                }
+                clarifications_md = "\n".join([f"- ❓ **{item_map.get(item, item)}**" for item in entities.missing_clarifications])
+            else:
+                clarifications_md = "- ✅ *सभी प्राथमिक कानूनी तथ्यों की पहचान कर ली गई है! आप शिकायत तैयार करने के लिए तैयार हैं।*"
+
+            citations_md = ""
+            for prov in entities.statutory_provisions[:2]:
+                prov_hi = prov.replace("Section 2(11) CPA 2019 - Deficiency in Service", "धारा 2(11) उपभोक्ता संरक्षण अधिनियम 2019 - सेवा में कमी") \
+                              .replace("Section 2(47) CPA 2019 - Unfair Trade Practice", "धारा 2(47) उपभोक्ता संरक्षण अधिनियम 2019 - अनुचित व्यापार व्यवहार") \
+                              .replace("Consumer Protection (E-Commerce) Rules, 2020", "उपभोक्ता संरक्षण (ई-कॉमर्स) नियम, 2020")
+                citations_md += f"- 📜 `{prov_hi}`\n"
+
+            if entities.domain == "e-commerce":
+                assessment = (
+                    "आपके विवरण के आधार पर, यह उपभोक्ता संरक्षण अधिनियम, 2019 की धारा 2(11) और 2(47) के तहत "
+                    "**सेवा में कमी** और संभावित **अनुचित व्यापार व्यवहार** का एक स्पष्ट मामला है, जिसे ई-कॉमर्स नियम, 2020 के साथ पढ़ा जाना चाहिए।\n\n"
+                    "व्यापारी अपने प्लेटफॉर्म पर बेचे गए दोषपूर्ण सामानों के लिए वैध धनवाపसी या प्रतिस्थापन से इनकार नहीं कर सकते हैं।"
+                )
+            elif entities.domain == "banking":
+                assessment = (
+                    "आपकी शिकायत उपभोक्ता संरक्षण अधिनियम 2019 की धारा 2(11) के तहत **बैंकिंग सेवा की कमी** से संबंधित है। "
+                    "अनधिकृत लेनदेन दावों को निर्दिष्ट समय सीमा में हल करने की जिम्मेदारी बैंकों की है।"
+                )
+            else:
+                assessment = (
+                    "उपभोक्ता संरक्षण अधिनियम, 2019 की धारा 2(11) के तहत, गुणवत्ता, प्रकृति और सेवा के प्रदर्शन के तरीके में कोई भी दोष **सेवा में कमी** माना जाता है।"
+                )
+
+            return (
+                f"### ⚖️ एआई कानूनी जांच आकलन\n\n"
+                f"{assessment}\n\n"
+                f"--- \n"
+                f"#### 📋 निकाले गए मामले के तथ्य\n"
+                f"- **विपक्षी दल (व्यापारी)**: {merchant_display}\n"
+                f"- **दावा राशि**: {amount_display}\n"
+                f"- **लेनदेन की तिथि**: {date_display}\n"
+                f"- **श्रेणी**: `{entities.domain.upper()}`\n"
+                f"- **अनुशंसित मंच**: `{entities.recommended_forum}`\n\n"
+                f"#### 📜 लागू कानूनी धाराएं और प्रावधान\n"
+                f"{citations_md}\n"
+                f"--- \n"
+                f"#### 🔍 औपचारिक शिकायत मसौदे के लिए स्पष्टीकरण प्रश्न\n"
+                f"अपनी शिकायत को मजबूत करने के लिए कृपया निम्नलिखित जानकारी प्रदान करें:\n"
+                f"{clarifications_md}\n\n"
+                f"💡 *सुझाव: एक बार जब आप इन प्रश्नों के उत्तर दे देते हैं या दस्तावेज़ तिजोरी में रसीद अपलोड कर देते हैं, तो हम स्वचालित रूप से आपकी शिकायत तैयार कर सकते हैं!*"
+            )
+        elif lang == "ta":
+            amount_display = f"₹{entities.claim_amount_inr:,.2f}" if entities.claim_amount_inr else "*குறிப்பிடப்படவில்லை*"
+            date_display = entities.purchase_date or "*குறிப்பிடப்படவில்லை*"
+
+            if entities.missing_clarifications:
+                item_map = {
+                    "Exact merchant or company name": "சரியான வணிகர் அல்லது நிறுவனத்தின் பெயர்",
+                    "Disputed invoice value or total claim amount (in INR)": "மொத்த உரிமைகோரல் தொகை (INR இல்)",
+                    "Purchase or transaction date": "வாங்கிய தேதி",
+                    "Whether a written complaint or email was sent to customer care": "வாடிக்கையாளர் சேவைக்கு மின்னஞ்சல் அனுப்பப்பட்டதா",
+                    "Whether the product is currently under warranty": "தயாரிப்பு தற்போது உத்தரவாதத்தின் கீழ் உள்ளதா"
+                }
+                clarifications_md = "\n".join([f"- ❓ **{item_map.get(item, item)}**" for item in entities.missing_clarifications])
+            else:
+                clarifications_md = "- ✅ *அனைத்து அடிப்படை உண்மைகளும் கண்டறியப்பட்டுள்ளன! நீங்கள் முறையான புகாரை உருவாக்க தயாராக உள்ளீர்கள்.*"
+
+            citations_md = ""
+            for prov in entities.statutory_provisions[:2]:
+                prov_ta = prov.replace("Section 2(11) CPA 2019 - Deficiency in Service", "பிரிவு 2(11) நுகர்வோர் பாதுகாப்பு சட்டம் 2019 - சேவைக் குறைபாடு") \
+                              .replace("Section 2(47) CPA 2019 - Unfair Trade Practice", "பிரிவு 2(47) நுகர்வோர் பாதுகாப்பு சட்டம் 2019 - நியாயமற்ற வர்த்தக நடைமுறை") \
+                              .replace("Consumer Protection (E-Commerce) Rules, 2020", "நுகர்வோர் பாதுகாப்பு (மின்-வணிகம்) விதிகள், 2020")
+                citations_md += f"- 📜 `{prov_ta}`\n"
+
+            if entities.domain == "e-commerce":
+                assessment = (
+                    "உங்கள் விளக்கத்தின் அடிப்படையில், இது நுகர்வோர் பாதுகாப்பு சட்டம், 2019 இன் பிரிவு 2(11) மற்றும் 2(47) இன் கீழ் "
+                    "**சேவைக் குறைபாடு** மற்றும் சாத்தியமான **நியாயமற்ற வர்த்தக நடைமுறை** ஆகும்.\n\n"
+                    "தவறான தயாரிப்புகளுக்கு வணிகர்கள் ரீஃபண்ட் அல்லது மாற்றீடு வழங்க மறுக்க முடியாது."
+                )
+            elif entities.domain == "banking":
+                assessment = (
+                    "உங்கள் புகார் பிரிவு 2(11) இன் கீழ் **வங்கி சேவைக் குறைபாடு** ஆகும். ரிசர்வ் வங்கி வழிகாட்டுதலின்படி, "
+                    "அங்கீகரிக்கப்படாத பரிவர்த்தனைகளை வங்கிகள் குறிப்பிட்ட காலத்திற்குள் தீர்க்க வேண்டும்."
+                )
+            else:
+                assessment = (
+                    "நுகர்வோர் பாதுகாப்பு சட்டம், 2019 இன் கீழ், சேவையின் தரம் அல்லது செயல்திறனில் உள்ள ஏதேனும் குறைபாடு **சேவைக் குறைபாடு** என்று கருதப்படும்."
+                )
+
+            return (
+                f"### ⚖️ AI சட்ட பகுப்பாய்வு மதிப்பீடு\n\n"
+                f"{assessment}\n\n"
+                f"--- \n"
+                f"#### 📋 கண்டறியப்பட்ட வழக்கு உண்மைகள்\n"
+                f"- **எதிர் தரப்பு (வணிகர்)**: {merchant_display}\n"
+                f"- **உரிமைகோரல் மதிப்பு**: {amount_display}\n"
+                f"- **பரிவர்த்தனை தேதி**: {date_display}\n"
+                f"- **துறை வகை**: `{entities.domain.upper()}`\n"
+                f"- **பரிந்துரைக்கப்பட்ட மன்றம்**: `{entities.recommended_forum}`\n\n"
+                f"#### 📜 பொருந்தக்கூடிய சட்ட விதிகள்\n"
+                f"{citations_md}\n"
+                f"--- \n"
+                f"#### 🔍 முறையான புகாரை தயாரிப்பதற்கான தெளிவுபடுத்தல் கேள்விகள்\n"
+                f"உங்கள் புகாரை வலுப்படுத்த பின்வரும் தகவல்களை வழங்கவும்:\n"
+                f"{clarifications_md}\n\n"
+                f"💡 *குறிப்பு: நீங்கள் இந்த கேள்விகளுக்கு பதிலளித்ததும் அல்லது ரசீதை ஆதார பெட்டகத்தில் பதிவேற்றியதும், நாங்கள் தானாகவே புகாரை உருவாக்குவோம்!*"
+            )
+        elif lang == "te":
+            amount_display = f"₹{entities.claim_amount_inr:,.2f}" if entities.claim_amount_inr else "*పేర్కొనబడలేదు*"
+            date_display = entities.purchase_date or "*పేర్కొనబడలేదు*"
+
+            if entities.missing_clarifications:
+                item_map = {
+                    "Exact merchant or company name": "ఖచ్చితమైన వ్యాపారి లేదా కంపెనీ పేరు",
+                    "Disputed invoice value or total claim amount (in INR)": "మొత్తం క్లెయిమ్ మొత్తం (INR లో)",
+                    "Purchase or transaction date": "కొనుగోలు తేదీ",
+                    "Whether a written complaint or email was sent to customer care": "కస్టమర్ కేర్‌కు లిఖితపూర్వక ఫిర్యాదు లేదా ఈమెయిల్ పంపబడిందా",
+                    "Whether the product is currently under warranty": "ఉత్పత్తి ప్రస్తుతం వారంటీలో ఉందా"
+                }
+                clarifications_md = "\n".join([f"- ❓ **{item_map.get(item, item)}**" for item in entities.missing_clarifications])
+            else:
+                clarifications_md = "- ✅ *అన్ని ప్రాథమిక వాస్తవాలు గుర్తించబడ్డాయి! మీరు ఫిర్యాదును సిద్ధం చేయడానికి సిద్ధంగా ఉన్నారు.*"
+
+            citations_md = ""
+            for prov in entities.statutory_provisions[:2]:
+                prov_te = prov.replace("Section 2(11) CPA 2019 - Deficiency in Service", "సెక్షన్ 2(11) వినియోగదారుల రక్షణ చట్టం 2019 - సేవా లోపం") \
+                              .replace("Section 2(47) CPA 2019 - Unfair Trade Practice", "సెక్షన్ 2(47) వినియోగదారుల రక్షణ చట్టం 2019 - అన్యాయమైన వ్యాపార పద్ధతి") \
+                              .replace("Consumer Protection (E-Commerce) Rules, 2020", "వినియోగదారుల రక్షణ (ఈ-కామర్స్) నిబంధనలు, 2020")
+                citations_md += f"- 📜 `{prov_te}`\n"
+
+            if entities.domain == "e-commerce":
+                assessment = (
+                    "మీ వివరణ ఆధారంగా, ఇది వినియోగదారుల రక్షణ చట్టం, 2019 యొక్క సెక్షన్ 2(11) మరియు 2(47) కింద "
+                    "**సేవా లోపం** మరియు అన్యాయమైన వ్యాపార పద్ధతిగా పరిగణించబడుతుంది.\n\n"
+                    "వినియోగదారుల హక్కుల ప్రకారం వ్యాపారులు రీఫండ్ లేదా రీప్లేస్‌మెంట్ తిరస్కరించలేరు."
+                )
+            elif entities.domain == "banking":
+                assessment = (
+                    "మీ ఫిర్యాదు సెక్షన్ 2(11) కింద **బ్యాంకింగ్ సేవా లోపం** పరిధిలోకి వస్తుంది. ఆర్‌బీఐ నిబంధనల ప్రకారం "
+                    "బ్యాంకులు అనధికార లావాదేవీల ఫిర్యాదులను నిర్ణీత గడువులోగా పరిష్కరించాలి."
+                )
+            else:
+                assessment = (
+                    "వినియోగదారుల రక్షణ చట్టం, 2019 కింద, సేవలో ఏదేని లోపం లేదా నాణ్యత లేకపోవడం **సేవా లోపం** అని పిలువబడుతుంది."
+                )
+
+            return (
+                f"### ⚖️ AI చట్టపరమైన విశ్లేషణ అంచనా\n\n"
+                f"{assessment}\n\n"
+                f"--- \n"
+                f"#### 📋 గుర్తించబడిన కేసు వాస్తవాలు\n"
+                f"- **ఎదురు పక్షం (వ్యాపారి)**: {merchant_display}\n"
+                f"- **క్లెయిమ్ విలువ**: {amount_display}\n"
+                f"- **లావాదేవీ తేదీ**: {date_display}\n"
+                f"- **విభాగం**: `{entities.domain.upper()}`\n"
+                f"- **సిఫార్సు చేయబడిన ఫోరమ్**: `{entities.recommended_forum}`\n\n"
+                f"#### 📜 వర్తించే చట్టపరమైన నిబంధనలు\n"
+                f"{citations_md}\n"
+                f"--- \n"
+                f"#### 🔍 ఫిర్యాదు పత్రం రూపకల్పన కోసం స్పష్టీకరణ ప్రశ్నలు\n"
+                f"మీ కేసును బలోపేతం చేయడానికి దయచేసి క్రింది వివరాలను అందించండి:\n"
+                f"{clarifications_md}\n\n"
+                f"💡 *చిట్కా: మీరు ఈ ప్రశ్నలకు సమాధానమిస్తే లేదా రసీదును అప్‌లోడ్ చేస్తే, మేము స్వయంచాలకంగా ఫిర్యాదును సిద్ధం చేస్తాము!*"
+            )
         else:
-            clarifications_md = "- ✅ *All primary legal facts have been identified! You are ready to generate a formal legal complaint.* "
+            # Default to English
+            amount_display = f"₹{entities.claim_amount_inr:,.2f}" if entities.claim_amount_inr else "*Not yet specified*"
+            date_display = entities.purchase_date or "*Not yet specified*"
 
-        # Statutory citation highlights
-        citations_md = "\n".join([f"- 📜 `{prov}`" for prov in entities.statutory_provisions[:2]])
+            if entities.missing_clarifications:
+                clarifications_md = "\n".join([f"- ❓ **{item}**" for item in entities.missing_clarifications])
+            else:
+                clarifications_md = "- ✅ *All primary legal facts have been identified! You are ready to generate a formal legal complaint.* "
 
-        # Custom assessment based on domain
-        if entities.domain == "e-commerce":
-            assessment = (
-                "Based on your description, this constitutes a clear case of **Deficiency in Service** and potential "
-                "**Unfair Trade Practice** under Section 2(11) and 2(47) of the **Consumer Protection Act, 2019**, read with the **E-Commerce Rules, 2020**.\n\n"
-                "Merchants cannot refuse rightful refunds or replacements for defective goods sold on their platform."
-            )
-        elif entities.domain == "banking":
-            assessment = (
-                "Your grievance involves a **Banking Service Deficiency** under **Section 2(11) of CPA 2019**. "
-                "Under RBI circulars on Customer Protection, banks must resolve unauthorized electronic debit claims within designated timelines "
-                "and reverse erroneous debits without placing undue burden on the customer."
-            )
-        else:
-            assessment = (
-                "Under **Section 2(11) of the Consumer Protection Act, 2019**, any fault, imperfection, shortcoming, or "
-                "inadequacy in the quality, nature, and manner of performance of service constitutes a **Deficiency in Service** actionable in Consumer Courts."
-            )
+            citations_md = "\n".join([f"- 📜 `{prov}`" for prov in entities.statutory_provisions[:2]])
 
-        return (
-            f"### ⚖️ AI Legal Triage Assessment\n\n"
-            f"{assessment}\n\n"
-            f"--- \n"
-            f"#### 📋 Extracted Case Facts\n"
-            f"- **Opposite Party (Merchant)**: {merchant_display}\n"
-            f"- **Claim Value**: {amount_display}\n"
-            f"- **Transaction Date**: {date_display}\n"
-            f"- **Domain Category**: `{entities.domain.upper()}`\n"
-            f"- **Recommended Forum**: `{entities.recommended_forum}`\n\n"
-            f"#### 📜 Applicable Legal Precedents & Provisions\n"
-            f"{citations_md}\n\n"
-            f"--- \n"
-            f"#### 🔍 Clarifying Questions for Formal Complaint Drafting\n"
-            f"To strengthen your legal notice and ensure your complaint has no procedural defects, please provide:\n"
-            f"{clarifications_md}\n\n"
-            f"💡 *Tip: Once you answer these questions or upload your receipt in the Evidence Vault, "
-            f"we can automatically generate your formal District Commission complaint or NCH helpline petition!*"
-        )
+            if entities.domain == "e-commerce":
+                assessment = (
+                    "Based on your description, this constitutes a clear case of **Deficiency in Service** and potential "
+                    "**Unfair Trade Practice** under Section 2(11) and 2(47) of the **Consumer Protection Act, 2019**, read with the **E-Commerce Rules, 2020**.\n\n"
+                    "Merchants cannot refuse rightful refunds or replacements for defective goods sold on their platform."
+                )
+            elif entities.domain == "banking":
+                assessment = (
+                    "Your grievance involves a **Banking Service Deficiency** under **Section 2(11) of CPA 2019**. "
+                    "Under RBI circulars on Customer Protection, banks must resolve unauthorized electronic debit claims within designated timelines "
+                    "and reverse erroneous debits without placing undue burden on the customer."
+                )
+            else:
+                assessment = (
+                    "Under **Section 2(11) of the Consumer Protection Act, 2019**, any fault, imperfection, shortcoming, or "
+                    "inadequacy in the quality, nature, and manner of performance of service constitutes a **Deficiency in Service** actionable in Consumer Courts."
+                )
+
+            return (
+                f"### ⚖️ AI Legal Triage Assessment\n\n"
+                f"{assessment}\n\n"
+                f"--- \n"
+                f"#### 📋 Extracted Case Facts\n"
+                f"- **Opposite Party (Merchant)**: {merchant_display}\n"
+                f"- **Claim Value**: {amount_display}\n"
+                f"- **Transaction Date**: {date_display}\n"
+                f"- **Domain Category**: `{entities.domain.upper()}`\n"
+                f"- **Recommended Forum**: `{entities.recommended_forum}`\n\n"
+                f"#### 📜 Applicable Legal Precedents & Provisions\n"
+                f"{citations_md}\n\n"
+                f"--- \n"
+                f"#### 🔍 Clarifying Questions for Formal Complaint Drafting\n"
+                f"To strengthen your legal notice and ensure your complaint has no procedural defects, please provide:\n"
+                f"{clarifications_md}\n\n"
+                f"💡 *Tip: Once you answer these questions or upload your receipt in the Evidence Vault, "
+                f"we can automatically generate your formal District Commission complaint or NCH helpline petition!*"
+            )

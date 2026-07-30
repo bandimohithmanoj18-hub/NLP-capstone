@@ -32,7 +32,7 @@ class Settings:
     Centralized configuration settings for the AI Consumer Complaint & NCH Guidance System.
     Loads settings from environment variables with sensible defaults for local development.
     """
-    PROJECT_NAME: str = os.getenv("PROJECT_NAME", "AI Consumer Complaint & NCH Guidance System")
+    PROJECT_NAME: str = os.getenv("PROJECT_NAME", "AI Consumer Triage & Redressal Portal")
     VERSION: str = os.getenv("VERSION", "1.0.0")
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")

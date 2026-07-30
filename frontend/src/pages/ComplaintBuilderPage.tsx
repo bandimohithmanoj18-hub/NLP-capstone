@@ -33,15 +33,15 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
   const [selectedEvidenceIds, setSelectedEvidenceIds] = useState<number[]>([]);
 
   // Form State
-  const [title, setTitle] = useState<string>('Defective LG Refrigerator Claim against Amazon');
-  const [complainantName, setComplainantName] = useState<string>('Rajesh Kumar');
-  const [complainantAddress, setComplainantAddress] = useState<string>('No. 14, Anna Salai, Chennai, Tamil Nadu');
+  const [title, setTitle] = useState<string>('Defective Smartphone Claim');
+  const [complainantName, setComplainantName] = useState<string>('Anita Verma');
+  const [complainantAddress, setComplainantAddress] = useState<string>('Sector 62, Noida, Uttar Pradesh');
   const [complainantContact, setComplainantContact] = useState<string>('+91 98765 43210');
-  const [opName, setOpName] = useState<string>('Amazon Retail India Pvt. Ltd.');
-  const [opAddress, setOpAddress] = useState<string>('World Trade Centre, Bengaluru, Karnataka');
-  const [opContact, setOpContact] = useState<string>('grievance-officer@amazon.in');
+  const [opName, setOpName] = useState<string>('Retail Store Services Pvt. Ltd.');
+  const [opAddress, setOpAddress] = useState<string>('Industrial Area Phase II, New Delhi');
+  const [opContact, setOpContact] = useState<string>('grievance@retailmerchant.com');
   const [forum, setForum] = useState<string>('DISTRICT_COMMISSION');
-  const [claimAmount, setClaimAmount] = useState<string>('45000');
+  const [claimAmount, setClaimAmount] = useState<string>('25000');
   const [facts, setFacts] = useState<string>('');
   const [grounds, setGrounds] = useState<string>('');
   const [relief, setRelief] = useState<string>('');
@@ -186,14 +186,14 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
   const handleNewDraft = () => {
     setSelectedComplaint(null);
     setTitle('New Consumer Grievance Complaint');
-    setComplainantName('Rajesh Kumar');
-    setComplainantAddress('Chennai, Tamil Nadu');
-    setComplainantContact('+91 98765 43210');
-    setOpName('Flipkart Internet Pvt. Ltd.');
-    setOpAddress('Bengaluru, Karnataka');
-    setOpContact('support@flipkart.com');
+    setComplainantName('Complainant Name');
+    setComplainantAddress('Complainant Address');
+    setComplainantContact('+91 90000 00000');
+    setOpName('Merchant Company Name');
+    setOpAddress('Merchant Business Address');
+    setOpContact('support@merchant.com');
     setForum('DISTRICT_COMMISSION');
-    setClaimAmount('35000');
+    setClaimAmount('25000');
     setFacts('');
     setGrounds('');
     setRelief('');

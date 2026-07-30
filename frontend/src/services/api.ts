@@ -92,11 +92,13 @@ export const getChatSessionHistory = async (sessionId: number): Promise<ChatSess
 
 export const sendChatMessage = async (
   sessionId: number,
-  content: string
+  content: string,
+  language?: string
 ): Promise<ChatMessage> => {
   const response = await apiClient.post<ChatMessage>(`/chat/sessions/${sessionId}/message`, {
     content,
     role: 'user',
+    language: language || 'en',
   });
   return response.data;
 };
