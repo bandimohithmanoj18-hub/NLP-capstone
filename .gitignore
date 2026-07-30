@@ -1,0 +1,30 @@
+# Python virtual environments & dependencies
+.venv/
+venv/
+ENV/
+*.pyc
+__pycache__/
+.pytest_cache/
+.local/
+
+# Node dependencies & builds
+node_modules/
+dist/
+frontend/dist/
+.next/
+out/
+build/
+
+# Local databases, user files & caches
+data/app.db
+data/uploads/*
+!data/uploads/.gitkeep
+data/generated/*
+!data/generated/.gitkeep
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

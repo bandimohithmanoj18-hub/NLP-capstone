@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-consumer-complaint-nch-system
+    ports:
+      - "8000:8000"
+      - "5173:5173"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=sqlite:///data/app.db
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-consumer-complaint-nch-backend"
+version = "0.1.0"
+description = "AI Consumer Complaint & NCH Guidance System - FastAPI Backend"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.140.0",
+    "uvicorn>=0.50.0",
+    "sqlalchemy>=2.0.0",
+    "pydantic>=2.10.0",
+    "httpx>=0.28.0",
+    "python-multipart>=0.0.20",
+    "python-docx>=1.1.0",
+    "pytest>=8.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
