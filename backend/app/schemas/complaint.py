@@ -38,6 +38,7 @@ class ComplaintUpdate(BaseModel):
     grounds: Optional[str] = None
     relief_sought: Optional[str] = None
     verification_clause: Optional[str] = None
+    evidence_ids: Optional[List[int]] = None
 
 
 class ComplaintResponse(BaseModel):

@@ -29,6 +29,8 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
   const [saving, setSaving] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [evidences, setEvidences] = useState<EvidenceResponse[]>([]);
+  const [selectedEvidenceIds, setSelectedEvidenceIds] = useState<number[]>([]);
 
   // Form State
   const [title, setTitle] = useState<string>('Defective LG Refrigerator Claim against Amazon');
@@ -61,8 +63,18 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
     }
   };
 
+  const fetchEvidences = async () => {
+    try {
+      const res = await apiClient.get<EvidenceResponse[]>('/ocr/evidence');
+      setEvidences(res.data);
+    } catch (err) {
+      console.warn('Could not load evidence vault documents.');
+    }
+  };
+
   useEffect(() => {
     fetchComplaints();
+    fetchEvidences();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -81,6 +93,7 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
     setGrounds(item.grounds || '');
     setRelief(item.relief_sought || '');
     setVerification(item.verification_clause || '');
+    setSelectedEvidenceIds(item.evidences ? item.evidences.map((e) => e.id) : []);
   };
 
   const handleGenerateAIDraft = () => {
@@ -108,6 +121,25 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
     );
   };
 
+  const handleToggleEvidence = (id: number) => {
+    setSelectedEvidenceIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleAutoFillFromEvidence = () => {
+    const firstSelected = evidences.find((ev) => selectedEvidenceIds.includes(ev.id));
+    if (firstSelected) {
+      if (firstSelected.extracted_merchant_name) {
+        setOpName(firstSelected.extracted_merchant_name);
+      }
+      if (firstSelected.extracted_amount) {
+        setClaimAmount(String(firstSelected.extracted_amount));
+      }
+      setSuccessMsg(`Auto-filled Opposite Party & Claim Amount from invoice: ${firstSelected.file_name}`);
+    }
+  };
+
   const handleSaveComplaint = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -128,6 +160,7 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
         grounds,
         relief_sought: relief,
         verification_clause: verification,
+        evidence_ids: selectedEvidenceIds,
       };
 
       if (selectedComplaint) {
@@ -165,6 +198,7 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
     setGrounds('');
     setRelief('');
     setVerification('');
+    setSelectedEvidenceIds([]);
     setSuccessMsg('Started a fresh complaint draft. Click "AI Draft Legal Prose" to auto-generate!');
   };
 
@@ -256,8 +290,8 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
         {/* Right Form Editor */}
         <div className="lg:col-span-3 bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-6">
           <form onSubmit={handleSaveComplaint} className="space-y-5">
-            {/* Title & Forum */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Title, Forum & Claim Amount */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
                   Complaint Subject / Case Title
@@ -285,6 +319,19 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
                   <option value="NCDRC">NCDRC (above ₹2Cr)</option>
                   <option value="NCH_HELPLINE">NCH Helpline (Pre-Litigation)</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Disputed Claim Amount (INR)
+                </label>
+                <input
+                  type="number"
+                  required
+                  value={claimAmount}
+                  onChange={(e) => setClaimAmount(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white font-semibold"
+                />
               </div>
             </div>
 
@@ -351,6 +398,57 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Attached Evidence Checklist Section */}
+            <div className="p-4 rounded-xl bg-purple-50/20 border border-purple-100/60 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-xs text-purple-900 flex items-center space-x-1.5">
+                  <FileText className="w-4 h-4 text-purple-600" />
+                  <span>Attach OCR Evidence from Vault</span>
+                </h4>
+                {selectedEvidenceIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleAutoFillFromEvidence}
+                    className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-[10px] font-bold transition-colors shadow-sm"
+                  >
+                    Auto-fill from Selected
+                  </button>
+                )}
+              </div>
+              {evidences.length === 0 ? (
+                <p className="text-[11px] text-gray-400">
+                  No evidence files found in the vault. Upload invoices in the Evidence Vault first.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-32 overflow-y-auto pr-2">
+                  {evidences.map((ev) => {
+                    const isChecked = selectedEvidenceIds.includes(ev.id);
+                    return (
+                      <label
+                        key={ev.id}
+                        className={`flex items-start space-x-2 p-2 rounded-lg border cursor-pointer text-xs transition-colors ${
+                          isChecked ? 'bg-purple-50 border-purple-300' : 'bg-white border-gray-100 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleEvidence(ev.id)}
+                          className="mt-0.5 h-3.5 w-3.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-gray-800 truncate">{ev.file_name}</div>
+                          <div className="text-[10px] text-purple-700 font-bold mt-0.5">
+                            {ev.extracted_merchant_name || 'Unknown Merchant'} • ₹{ev.extracted_amount ? ev.extracted_amount.toLocaleString('en-IN') : '0'}
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Legal Prose Textareas */}

@@ -49,3 +49,45 @@ def test_create_and_manage_complaint():
     del_res = client.delete(f"/api/v1/complaints/{complaint_id}")
     assert del_res.status_code == 200
     assert del_res.json()["success"] is True
+
+
+def test_complaint_evidence_linking():
+    """Verify that evidence documents can be linked and unlinked during complaint updates."""
+    # 1. Create a dummy evidence
+    import io
+    dummy_pdf = b"%PDF-1.4 mock invoice for linking"
+    files = {"file": ("linking_receipt.pdf", io.BytesIO(dummy_pdf), "application/pdf")}
+    up_res = client.post("/api/v1/ocr/upload", files=files)
+    assert up_res.status_code == 201
+    ev_id = up_res.json()["evidence"]["id"]
+
+    # 2. Draft complaint with linked evidence
+    create_payload = {
+        "title": "Evidence Linking Test Case",
+        "complainant_name": "Anita Verma",
+        "opposite_party_name": "Amazon",
+        "jurisdiction_forum": "DISTRICT_COMMISSION",
+        "claim_amount": 25000.0,
+        "evidence_ids": [ev_id],
+    }
+    draft_res = client.post("/api/v1/complaints/draft", json=create_payload)
+    assert draft_res.status_code == 201
+    complaint = draft_res.json()
+    assert len(complaint["evidences"]) == 1
+    assert complaint["evidences"][0]["id"] == ev_id
+
+    complaint_id = complaint["id"]
+
+    # 3. Update complaint by unlinking the evidence (sending empty list)
+    update_res = client.put(
+        f"/api/v1/complaints/{complaint_id}",
+        json={"evidence_ids": []},
+    )
+    assert update_res.status_code == 200
+    updated = update_res.json()
+    assert len(updated["evidences"]) == 0
+
+    # 4. Clean up complaint
+    del_res = client.delete(f"/api/v1/complaints/{complaint_id}")
+    assert del_res.status_code == 200
+

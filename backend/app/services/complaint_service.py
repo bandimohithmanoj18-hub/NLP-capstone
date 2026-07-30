@@ -92,12 +92,31 @@ class ComplaintService:
         if not doc:
             return None
 
-        for field, value in update_in.model_dump(exclude_unset=True).items():
+        # Exclude evidence_ids from standard field mapping loop
+        update_dict = update_in.model_dump(exclude_unset=True)
+        evidence_ids = update_dict.pop("evidence_ids", None)
+
+        for field, value in update_dict.items():
             if hasattr(doc, field) and value is not None:
                 setattr(doc, field, value)
 
         db.add(doc)
         db.commit()
+
+        # Update linked evidence documents if list of IDs provided
+        if evidence_ids is not None:
+            # Dissociate currently linked evidence files
+            for ev in db.query(EvidenceDocument).filter(EvidenceDocument.complaint_id == complaint_id).all():
+                ev.complaint_id = None
+                db.add(ev)
+            # Link new evidence files
+            for ev_id in evidence_ids:
+                ev = db.query(EvidenceDocument).filter(EvidenceDocument.id == ev_id).first()
+                if ev:
+                    ev.complaint_id = complaint_id
+                    db.add(ev)
+            db.commit()
+
         db.refresh(doc)
         return ComplaintResponse.model_validate(doc)
 
