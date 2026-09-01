@@ -18,6 +18,9 @@ import {
   VolumeX,
   Mic,
   MicOff,
+  Settings,
+  Key,
+  Cpu,
 } from 'lucide-react';
 import {
   ChatSessionSummary,
@@ -34,6 +37,7 @@ import {
   deleteChatSession,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { translations } from '../utils/translations';
 
 interface ChatPageProps {
   onSelectView: (view: PageView) => void;
@@ -42,6 +46,7 @@ interface ChatPageProps {
 
 export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) => {
   const { isAuthenticated, user } = useAuth();
+  const t = translations[language] || translations['en'];
 
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
@@ -53,6 +58,11 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [speakingMsgId, setSpeakingMsgId] = useState<number | null>(null);
   const [listening, setListening] = useState<boolean>(false);
+
+  // LLM Settings state
+  const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
+  const [aiProvider, setAiProvider] = useState<string>(localStorage.getItem('ai_provider') || 'gemini');
+  const [aiApiKey, setAiApiKey] = useState<string>(localStorage.getItem('ai_api_key') || '');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -100,7 +110,11 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
     scrollToBottom();
   }, [activeSession?.messages]);
 
+  const [isCreatingSession, setIsCreatingSession] = useState<boolean>(false);
+
   const handleCreateSession = async (title?: string, domain?: string) => {
+    if (isCreatingSession) return;
+    setIsCreatingSession(true);
     setLoadingHistory(true);
     setErrorMsg(null);
     try {
@@ -108,13 +122,22 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
         title || 'New Legal Consultation',
         domain || 'e-commerce'
       );
+      setSessions((prev) => [
+        {
+          id: newSession.id,
+          title: newSession.title,
+          domain_category: newSession.domain_category,
+          created_at: newSession.created_at,
+          message_count: 0,
+        },
+        ...prev,
+      ]);
       setActiveSession(newSession);
-      const updatedList = await getChatSessions();
-      setSessions(updatedList);
     } catch (err: any) {
-      setErrorMsg('Failed to start a new consultation session.');
+      setErrorMsg('Could not create a new consultation session.');
     } finally {
       setLoadingHistory(false);
+      setIsCreatingSession(false);
     }
   };
 
@@ -152,6 +175,8 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
     if (language === 'hi') langCode = 'hi-IN';
     if (language === 'ta') langCode = 'ta-IN';
     if (language === 'te') langCode = 'te-IN';
+    if (language === 'kn') langCode = 'kn-IN';
+    if (language === 'ml') langCode = 'ml-IN';
 
     const selectedVoice = voices.find((v) => v.lang.startsWith(langCode));
     if (selectedVoice) {
@@ -173,7 +198,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
   const startVoiceDictation = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert('Speech Recognition is not supported by your browser.');
+      setErrorMsg('Voice dictation is not supported in your browser. Please type your grievance.');
       return;
     }
 
@@ -190,6 +215,8 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
     if (language === 'hi') langCode = 'hi-IN';
     if (language === 'ta') langCode = 'ta-IN';
     if (language === 'te') langCode = 'te-IN';
+    if (language === 'kn') langCode = 'kn-IN';
+    if (language === 'ml') langCode = 'ml-IN';
     recognition.lang = langCode;
 
     recognition.onstart = () => {
@@ -276,12 +303,12 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
   const latestEntities = getLatestEntities();
 
   const domainFilters = [
-    { id: 'all', label: 'All Domains' },
-    { id: 'e-commerce', label: 'E-Commerce' },
-    { id: 'banking', label: 'Banking & Finance' },
-    { id: 'telecom', label: 'Telecom' },
-    { id: 'airline', label: 'Airlines' },
-    { id: 'housing', label: 'Housing / RERA' },
+    { id: 'all', label: t.all_domains },
+    { id: 'e-commerce', label: t.e_commerce },
+    { id: 'banking', label: t.banking_finance },
+    { id: 'telecom', label: t.telecom },
+    { id: 'airline', label: t.airlines },
+    { id: 'housing', label: t.housing_rera },
   ];
 
   const quickPrompts = [
@@ -289,6 +316,13 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
     "A private bank debited Rs. 75,000 from my credit card without OTP or authorization.",
     "A domestic flight ticket was cancelled without notice and the airline refused ticket refund.",
     "A telecom broadband operator charged Rs. 3,500 extra billing after disconnection request.",
+  ];
+
+  const quickActionPills = [
+    "What are my statutory rights under CPA 2019 for defective items?",
+    "How much is the consumer court filing fee for Rs 45,000 claim?",
+    "How do I register a complaint on National Consumer Helpline (1915)?",
+    "What is the e-Daakhil online court filing process step-by-step?",
   ];
 
   const filteredSessions =
@@ -299,13 +333,13 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
   const formatForumLabel = (forumCode?: string) => {
     switch (forumCode) {
       case 'DISTRICT_COMMISSION':
-        return 'District Commission (up to ₹50 Lakhs)';
+        return t.district_commission_forum;
       case 'STATE_COMMISSION':
-        return 'State Commission (₹50 Lakhs - ₹2 Crores)';
+        return t.state_commission_forum;
       case 'NCDRC':
-        return 'NCDRC (National Commission - above ₹2 Crores)';
+        return t.ncdrc_forum;
       default:
-        return 'NCH Helpline / District Forum';
+        return t.nch_forum;
     }
   };
 
@@ -317,7 +351,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center space-x-2">
               <MessageSquare className="w-4 h-4 text-blue-600" />
-              <h3 className="font-bold text-gray-900 text-sm">Consultations</h3>
+              <h3 className="font-bold text-gray-900 text-sm">{t.consultations}</h3>
             </div>
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
               {sessions.length}
@@ -329,7 +363,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
             className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-1.5 transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4" />
-            <span>New Consultation</span>
+            <span>{t.new_chat}</span>
           </button>
 
           {/* Domain Category Filter Badges */}
@@ -431,6 +465,16 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
           </div>
 
           <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 flex items-center space-x-1.5 transition-colors shadow-sm"
+              title="Configure AI Model Provider (Gemini, OpenAI, Ollama)"
+            >
+              <Cpu className="w-3.5 h-3.5 text-purple-600" />
+              <span>AI Provider: {aiProvider.toUpperCase()}</span>
+              <Settings className="w-3.5 h-3.5 ml-1 text-purple-500" />
+            </button>
+
             <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 border border-green-200 text-green-700 flex items-center space-x-1">
               <ShieldCheck className="w-3.5 h-3.5 mr-1" />
               <span>Milestone 3 Operational</span>
@@ -519,6 +563,25 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
 
         {/* Chat Input Bar */}
         <div className="p-4 border-t border-gray-200 bg-white">
+          {/* Quick Action Statutory Pills */}
+          <div className="flex items-center space-x-1.5 mb-2.5 overflow-x-auto pb-1">
+            <span className="text-[11px] font-bold text-gray-500 flex items-center space-x-1 shrink-0">
+              <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+              <span>AI Quick Action:</span>
+            </span>
+            {quickActionPills.map((pill, pIdx) => (
+              <button
+                key={pIdx}
+                type="button"
+                onClick={() => handleSendMessage(undefined, pill)}
+                disabled={sending}
+                className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 shrink-0 transition-colors shadow-xs"
+              >
+                {pill}
+              </button>
+            ))}
+          </div>
+
           {errorMsg && (
             <div className="mb-2 p-2 rounded bg-red-50 text-red-700 text-xs border border-red-200">
               {errorMsg}
@@ -529,7 +592,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
               type="text"
               value={inputPrompt}
               onChange={(e) => setInputPrompt(e.target.value)}
-              placeholder="Describe your consumer grievance (merchant name, purchase date, invoice amount, what went wrong)..."
+              placeholder={t.type_message}
               className="flex-1 px-4 py-2.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
               disabled={sending}
             />
@@ -550,7 +613,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
               disabled={sending || !inputPrompt.trim()}
               className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-semibold rounded-xl text-sm flex items-center space-x-2 transition-colors shadow-md"
             >
-              <span>{sending ? 'Triaging...' : 'Send'}</span>
+              <span>{sending ? t.triaging : t.send}</span>
               <Send className="w-4 h-4" />
             </button>
           </form>
@@ -563,10 +626,10 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
           <div className="border-b border-gray-200 pb-3">
             <div className="flex items-center space-x-2 text-blue-900">
               <ShieldCheck className="w-5 h-5 text-blue-600" />
-              <h3 className="font-bold text-sm">Case Fact Sheet</h3>
+              <h3 className="font-bold text-sm">{t.case_fact_sheet}</h3>
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              Extracted automatically from chat via rule-based triage NLP.
+              {t.fact_sheet_subtitle}
             </p>
           </div>
 
@@ -574,36 +637,36 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
           <div className="bg-white rounded-xl border border-gray-200 p-3.5 space-y-3 shadow-sm">
             <div>
               <div className="text-[11px] font-semibold text-gray-400 uppercase">
-                Opposite Party (Merchant)
+                {t.opposite_party}
               </div>
               <div className="text-sm font-bold text-gray-900 mt-0.5">
-                {latestEntities?.merchant_name || 'Not identified yet'}
+                {latestEntities?.merchant_name || t.not_identified_yet}
               </div>
             </div>
 
             <div>
               <div className="text-[11px] font-semibold text-gray-400 uppercase">
-                Disputed Claim Value
+                {t.disputed_claim_value}
               </div>
               <div className="text-sm font-bold text-blue-600 mt-0.5">
                 {latestEntities?.claim_amount_inr
                   ? `₹${latestEntities.claim_amount_inr.toLocaleString('en-IN')}.00`
-                  : 'Not identified yet'}
+                  : t.not_identified_yet}
               </div>
             </div>
 
             <div>
               <div className="text-[11px] font-semibold text-gray-400 uppercase">
-                Transaction / Purchase Date
+                {t.transaction_date}
               </div>
               <div className="text-sm font-semibold text-gray-800 mt-0.5">
-                {latestEntities?.purchase_date || 'Not identified yet'}
+                {latestEntities?.purchase_date || t.not_identified_yet}
               </div>
             </div>
 
             <div>
               <div className="text-[11px] font-semibold text-gray-400 uppercase">
-                Statutory Dispute Forum
+                {t.statutory_forum}
               </div>
               <div className="text-xs font-bold text-purple-800 mt-0.5 p-2 rounded bg-purple-50 border border-purple-200">
                 {formatForumLabel(latestEntities?.recommended_forum)}
@@ -615,7 +678,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
           <div className="bg-white rounded-xl border border-gray-200 p-3.5 space-y-2 shadow-sm">
             <h4 className="text-xs font-bold text-gray-900 flex items-center space-x-1.5">
               <HelpCircle className="w-4 h-4 text-amber-500" />
-              <span>Missing Clarifications:</span>
+              <span>{t.missing_clarifications_title}</span>
             </h4>
             {latestEntities && latestEntities.missing_clarifications.length > 0 ? (
               <ul className="space-y-1.5">
@@ -639,7 +702,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
             <div className="bg-white rounded-xl border border-gray-200 p-3.5 space-y-2 shadow-sm">
               <h4 className="text-xs font-bold text-gray-900 flex items-center space-x-1.5">
                 <BookOpen className="w-4 h-4 text-blue-600" />
-                <span>Statutory Authority:</span>
+                <span>{t.statutory_authority_title}</span>
               </h4>
               <ul className="space-y-1">
                 {latestEntities.statutory_provisions.map((prov, idx) => (
@@ -658,18 +721,113 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
             onClick={() => onSelectView('complaint_builder')}
             className="w-full py-2.5 px-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-semibold rounded-xl flex items-center justify-between shadow transition-all"
           >
-            <span>Proceed to Complaint Builder</span>
+            <span>{t.proceed_complaint_builder}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
           <button
             onClick={() => onSelectView('evidence')}
             className="w-full py-2 px-3 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 text-xs font-semibold rounded-xl flex items-center justify-between transition-all"
           >
-            <span>Attach Evidence Vault OCR</span>
+            <span>{t.upload_evidence_vault}</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
+
+      {/* 4. AI MODEL PROVIDER & API KEY CONFIGURATION MODAL */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 border border-gray-100 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div className="flex items-center space-x-2">
+                <Cpu className="w-5 h-5 text-purple-600" />
+                <h3 className="font-bold text-gray-900 text-base">AI Model & LLM Settings</h3>
+              </div>
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-sm font-bold px-2 py-1 rounded-lg hover:bg-gray-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-gray-700 mb-1.5">
+                  Select AI LLM Provider
+                </label>
+                <select
+                  value={aiProvider}
+                  onChange={(e) => setAiProvider(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none bg-white font-medium"
+                >
+                  <option value="gemini">Google Gemini AI (Gemini 1.5 Flash / 2.0 Flash)</option>
+                  <option value="openai">OpenAI (GPT-4o / GPT-4o-mini)</option>
+                  <option value="ollama">Ollama / Gemma (Local LLM Server)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-gray-700 mb-1.5 flex items-center justify-between">
+                  <span>API Key / Endpoint Token</span>
+                  <Key className="w-3.5 h-3.5 text-purple-600" />
+                </label>
+                <input
+                  type="password"
+                  value={aiApiKey}
+                  onChange={(e) => setAiApiKey(e.target.value)}
+                  placeholder={
+                    aiProvider === 'gemini'
+                      ? 'Paste Google Gemini API Key (AIzaSy...)'
+                      : aiProvider === 'openai'
+                      ? 'Paste OpenAI API Key (sk-...)'
+                      : 'Ollama Base URL (e.g. http://localhost:11434)'
+                  }
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none font-mono"
+                />
+              </div>
+
+              {/* Helpful Link to get FREE Gemini Key */}
+              <div className="p-3.5 rounded-xl bg-purple-50 border border-purple-100 space-y-2">
+                <div className="font-bold text-purple-900 flex items-center space-x-1.5">
+                  <Sparkles className="w-4 h-4 text-purple-600" />
+                  <span>Get a 100% Free Gemini API Key</span>
+                </div>
+                <p className="text-gray-600 text-[11px] leading-relaxed">
+                  You can get a free, official Google Gemini API Key in seconds from Google AI Studio.
+                </p>
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center space-x-1 text-purple-700 font-bold hover:underline text-[11px]"
+                >
+                  <span>Open Google AI Studio Key Page ↗</span>
+                </a>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 pt-2">
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.setItem('ai_provider', aiProvider);
+                  localStorage.setItem('ai_api_key', aiApiKey);
+                  setShowSettingsModal(false);
+                }}
+                className="px-5 py-2 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-xl shadow transition-colors"
+              >
+                Save LLM Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

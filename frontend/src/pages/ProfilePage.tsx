@@ -11,7 +11,11 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-export const ProfilePage: React.FC = () => {
+interface ProfilePageProps {
+  language?: string;
+}
+
+export const ProfilePage: React.FC<ProfilePageProps> = () => {
   const { user, updateProfile, loading, logout } = useAuth();
 
   const [fullName, setFullName] = useState(user?.full_name || '');
@@ -28,7 +32,7 @@ export const ProfilePage: React.FC = () => {
           Authentication Required
         </h3>
         <p className="text-sm text-gray-600">
-          Please sign in or use a demo account to access your user profile.
+          Please sign in or create an account to access your user profile.
         </p>
       </div>
     );

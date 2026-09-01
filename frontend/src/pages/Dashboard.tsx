@@ -3,7 +3,6 @@ import {
   Server,
   Database,
   Cpu,
-  Layers,
   BookOpen,
   MessageSquare,
   FileText,
@@ -38,12 +37,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
               {t.app_title}
             </h2>
             <p className="text-blue-100 max-w-2xl text-sm sm:text-base">
-              A comprehensive consumer dispute redressal platform combining OCR evidence extraction, RAG-backed guidelines, and automated legal notice & complaint drafting.
+              {t.hero_desc}
             </p>
           </div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <div className="bg-blue-700/60 border border-blue-500/30 text-xs px-3 py-1.5 rounded-full font-semibold uppercase tracking-wider">
-              CPA 2019 Compliant
+              {t.cpa_compliant}
             </div>
           </div>
         </div>
@@ -56,7 +55,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <Server className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-xs font-medium text-gray-500">FastAPI Backend</div>
+            <div className="text-xs font-medium text-gray-500">{t.fastapi_backend}</div>
             <div className="text-lg font-bold text-gray-900">
               {health ? health.status.toUpperCase() : 'ONLINE'}
             </div>
@@ -71,7 +70,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <Database className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-xs font-medium text-gray-500">Database Engine</div>
+            <div className="text-xs font-medium text-gray-500">{t.database_engine}</div>
             <div className="text-lg font-bold text-gray-900">
               {health?.services?.database ? health.services.database.toUpperCase() : 'CONNECTED'}
             </div>
@@ -84,7 +83,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <Cpu className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-xs font-medium text-gray-500">AI / Vector Engine</div>
+            <div className="text-xs font-medium text-gray-500">{t.ai_vector_engine}</div>
             <div className="text-lg font-bold text-gray-900">READY</div>
             <div className="text-xs text-gray-400">Local Embeds / FAISS</div>
           </div>
@@ -95,9 +94,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <BookOpen className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-xs font-medium text-gray-500">National Guidelines</div>
-            <div className="text-lg font-bold text-gray-900">6 Active Corpora</div>
-            <div className="text-xs text-gray-400">RAG Knowledge Base</div>
+            <div className="text-xs font-medium text-gray-500">{t.national_guidelines}</div>
+            <div className="text-lg font-bold text-gray-900">{t.active_corpora}</div>
+            <div className="text-xs text-gray-400">{t.rag_kb}</div>
           </div>
         </div>
       </div>
@@ -105,9 +104,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* Quick Start Actions Hub */}
       <div className="space-y-4">
         <div>
-          <h3 className="text-lg font-bold text-gray-900">Quick Actions Hub</h3>
+          <h3 className="text-lg font-bold text-gray-900">{t.quick_actions}</h3>
           <p className="text-xs text-gray-500">
-            Access core platform tools to triage, verify, and draft your consumer grievances.
+            {t.quick_actions_subtitle}
           </p>
         </div>
 
@@ -118,17 +117,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
                   <MessageSquare className="w-5 h-5" />
                 </div>
-                <h4 className="font-semibold text-gray-900 text-base">AI Legal Assistant</h4>
+                <h4 className="font-semibold text-gray-900 text-base">{t.ai_assistant}</h4>
               </div>
               <p className="text-xs text-gray-600 leading-relaxed mb-6">
-                Consult with our specialized AI legal triage chatbot. Describe your grievance (e-commerce, banking, airline, or telecom) to extract case facts, identify legal violations, and get immediate statutory advice under the Consumer Protection Act, 2019.
+                {t.ai_assistant_desc}
               </p>
             </div>
             <button
               onClick={() => onSelectView('chat')}
               className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center mt-auto inline-flex"
             >
-              <span>Start AI Consultation</span>
+              <span>{t.start_ai_consultation}</span>
               <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </button>
           </div>
@@ -139,17 +138,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div className="p-2 bg-green-50 text-green-600 rounded-lg">
                   <FileText className="w-5 h-5" />
                 </div>
-                <h4 className="font-semibold text-gray-900 text-base">Evidence Vault</h4>
+                <h4 className="font-semibold text-gray-900 text-base">{t.evidence_vault}</h4>
               </div>
               <p className="text-xs text-gray-600 leading-relaxed mb-6">
-                Upload receipts, invoices, warranty cards, or emails. The automated OCR engine extracts invoice metadata, line items, transaction dates, and values, linking them directly to your legal complaint draft.
+                {t.evidence_vault_desc}
               </p>
             </div>
             <button
               onClick={() => onSelectView('evidence')}
               className="text-xs font-bold text-green-600 hover:text-green-700 flex items-center mt-auto inline-flex"
             >
-              <span>Upload Receipts & Invoices</span>
+              <span>{t.upload_receipts}</span>
               <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </button>
           </div>
@@ -160,17 +159,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
                   <BookOpen className="w-5 h-5" />
                 </div>
-                <h4 className="font-semibold text-gray-900 text-base">Helplines & Guidelines</h4>
+                <h4 className="font-semibold text-gray-900 text-base">{t.guidelines}</h4>
               </div>
               <p className="text-xs text-gray-600 leading-relaxed mb-6">
-                Calculate consumer court filing jurisdictions, view statutory court fee tables, and inspect comprehensive redressal flowcharts for the National Consumer Helpline (NCH) and state consumer disputes forums.
+                {t.guidelines_desc}
               </p>
             </div>
             <button
               onClick={() => onSelectView('nch_guidance')}
               className="text-xs font-bold text-purple-600 hover:text-purple-700 flex items-center mt-auto inline-flex"
             >
-              <span>Calculate Jurisdiction & Fees</span>
+              <span>{t.explore_guidelines}</span>
               <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </button>
           </div>
@@ -181,17 +180,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
                   <Scale className="w-5 h-5" />
                 </div>
-                <h4 className="font-semibold text-gray-900 text-base">Complaint Drafter</h4>
+                <h4 className="font-semibold text-gray-900 text-base">{t.complaint_drafter}</h4>
               </div>
               <p className="text-xs text-gray-600 leading-relaxed mb-6">
-                Build structured consumer court petitions and pre-litigation legal notices. The builder compiles case facts, statutory grounds, and relief claims into formal, formatted PDF or Microsoft Word (DOCX) files.
+                {t.complaint_drafter_desc}
               </p>
             </div>
             <button
               onClick={() => onSelectView('complaint_builder')}
               className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center mt-auto inline-flex"
             >
-              <span>Draft Legal Notices</span>
+              <span>{t.draft_legal_complaint}</span>
               <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </button>
           </div>

@@ -13,7 +13,14 @@ import {
 import apiClient from '../services/api';
 import { ComplaintResponse } from '../types';
 
-export const DocumentsPage: React.FC = () => {
+import { translations } from '../utils/translations';
+
+interface DocumentsPageProps {
+  language?: string;
+}
+
+export const DocumentsPage: React.FC<DocumentsPageProps> = ({ language }) => {
+  const t = translations[language || 'en'] || translations['en'];
   const [complaints, setComplaints] = useState<ComplaintResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [exportingId, setExportingId] = useState<number | null>(null);
@@ -83,14 +90,14 @@ export const DocumentsPage: React.FC = () => {
         <div>
           <div className="flex items-center space-x-2">
             <h2 className="text-2xl font-bold text-gray-900">
-              PDF & DOCX Formal Export
+              {t.documents_title}
             </h2>
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-green-100 text-green-800 border border-green-200">
               Milestone 8 Operational
             </span>
           </div>
           <p className="text-sm text-gray-500 mt-1">
-            Export beautifully styled modern OOXML (.docx) and high-resolution ReportLab (.pdf) legal complaints and pre-litigation notices.
+            {t.documents_subtitle}
           </p>
         </div>
 
@@ -99,7 +106,7 @@ export const DocumentsPage: React.FC = () => {
           className="text-xs text-gray-500 hover:text-gray-900 flex items-center space-x-1"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          <span>Refresh List</span>
+          <span>{t.refresh_list}</span>
         </button>
       </div>
 
@@ -122,7 +129,7 @@ export const DocumentsPage: React.FC = () => {
           <div className="p-12 text-center text-sm text-gray-400">Loading complaints...</div>
         ) : complaints.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400 text-sm">
-            No complaints drafted yet. Visit the "Complaint Builder" to draft your first complaint.
+            {t.no_documents_ready}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -165,13 +172,13 @@ export const DocumentsPage: React.FC = () => {
 
                     <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 text-xs">
                       <div>
-                        <span className="text-gray-400">Claim Amount:</span>
+                        <span className="text-gray-400">{t.disputed_claim_value}:</span>
                         <div className="font-bold text-green-700">
-                          ₹{c.claim_amount.toLocaleString('en-IN')}.00
+                          ₹{c.claim_amount ? c.claim_amount.toLocaleString('en-IN') : '0'}.00
                         </div>
                       </div>
                       <div>
-                        <span className="text-gray-400">Jurisdiction Forum:</span>
+                        <span className="text-gray-400">{t.statutory_forum}:</span>
                         <div className="font-bold text-purple-800 truncate">
                           {c.jurisdiction_forum.replace('_', ' ').toUpperCase()}
                         </div>
@@ -188,7 +195,7 @@ export const DocumentsPage: React.FC = () => {
                         className="flex-1 py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-xs flex items-center justify-center space-x-1.5 shadow-sm transition-colors"
                       >
                         <FolderDown className="w-4 h-4" />
-                        <span>{isExporting ? 'Generating...' : 'Generate DOCX & PDF'}</span>
+                        <span>{isExporting ? t.triaging : t.download_docx}</span>
                       </button>
 
                       <button
@@ -198,7 +205,7 @@ export const DocumentsPage: React.FC = () => {
                         title="Generate Pre-Litigation Notice"
                       >
                         <Send className="w-3.5 h-3.5" />
-                        <span>Legal Notice</span>
+                        <span>{t.generate_notice}</span>
                       </button>
                     </div>
 
@@ -210,14 +217,14 @@ export const DocumentsPage: React.FC = () => {
                           className="py-1.5 px-3 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-lg text-xs flex items-center justify-center space-x-1"
                         >
                           <Download className="w-3.5 h-3.5 text-blue-600" />
-                          <span>Download .docx</span>
+                          <span>{t.download_docx}</span>
                         </button>
                         <button
                           onClick={() => downloadFile(c.id, 'pdf')}
                           className="py-1.5 px-3 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-lg text-xs flex items-center justify-center space-x-1"
                         >
                           <Download className="w-3.5 h-3.5 text-red-600" />
-                          <span>Download .pdf</span>
+                          <span>{t.download_pdf}</span>
                         </button>
                       </div>
                     )}

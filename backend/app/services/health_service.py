@@ -53,7 +53,7 @@ class HealthService:
                 id=2,
                 title="Authentication and database",
                 status="completed",
-                description="User registration, OAuth2 JWT login, bcrypt password hashing, SQLAlchemy user profile management, and demo accounts."
+                description="User registration, OAuth2 JWT login, bcrypt password hashing, and SQLAlchemy user profile management."
             ),
             MilestoneStatus(
                 id=3,

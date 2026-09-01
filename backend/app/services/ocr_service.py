@@ -73,6 +73,8 @@ class OCRService:
         query = db.query(EvidenceDocument)
         if user_id is not None:
             query = query.filter(EvidenceDocument.user_id == user_id)
+        else:
+            query = query.filter(EvidenceDocument.user_id.is_(None))
         docs = query.order_by(EvidenceDocument.created_at.desc()).all()
         return [EvidenceResponse.model_validate(d) for d in docs]
 

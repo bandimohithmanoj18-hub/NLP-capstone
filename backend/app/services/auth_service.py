@@ -12,7 +12,7 @@ logger = get_logger("app.services.auth_service")
 
 class AuthService:
     """
-    Service class encapsulating user registration, authentication, profile management, and demo seeding.
+    Service class encapsulating user registration, authentication, and profile management.
     Part of **Milestone 2: Authentication and database**.
     """
 
@@ -87,46 +87,3 @@ class AuthService:
         db.refresh(user)
         logger.info(f"Updated profile for user ID {user.id} ({user.email})")
         return user
-
-    @staticmethod
-    def seed_default_users(db: Session) -> Tuple[User, User]:
-        """
-        Seeds default consumer and legal advocate demo accounts if they don't already exist.
-        Allows instant login without requiring registration.
-        """
-        consumer_email = "consumer@example.com"
-        advocate_email = "advocate@example.com"
-        default_pwd = "password123"
-
-        consumer = AuthService.get_user_by_email(db, consumer_email)
-        if not consumer:
-            consumer = User(
-                email=consumer_email,
-                hashed_password=get_password_hash(default_pwd),
-                full_name="Rajesh Kumar (Demo Consumer)",
-                phone_number="+91 98765 43210",
-                is_active=True,
-                is_advocate=False,
-            )
-            db.add(consumer)
-
-        advocate = AuthService.get_user_by_email(db, advocate_email)
-        if not advocate:
-            advocate = User(
-                email=advocate_email,
-                hashed_password=get_password_hash(default_pwd),
-                full_name="Adv. Priya Sharma (Demo Advocate)",
-                phone_number="+91 98111 22334",
-                is_active=True,
-                is_advocate=True,
-            )
-            db.add(advocate)
-
-        db.commit()
-        if consumer:
-            db.refresh(consumer)
-        if advocate:
-            db.refresh(advocate)
-
-        logger.info("Default consumer and advocate demo accounts verified in database.")
-        return consumer, advocate

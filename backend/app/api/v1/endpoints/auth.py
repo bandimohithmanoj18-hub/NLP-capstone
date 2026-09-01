@@ -91,32 +91,3 @@ def update_current_user_profile(
     Part of **Milestone 2: Authentication and database**.
     """
     return AuthService.update_profile(db, current_user, update_in)
-
-
-@router.post("/seed", summary="Seed default demo accounts (Consumer & Advocate)")
-def seed_demo_accounts(
-    db: Session = Depends(get_db),
-):
-    """
-    Seeds default demo accounts (`consumer@example.com` / `password123` and `advocate@example.com` / `password123`) for instant UI login testing.
-    Part of **Milestone 2: Authentication and database**.
-    """
-    consumer, advocate = AuthService.seed_default_users(db)
-    return {
-        "success": True,
-        "message": "Demo accounts seeded successfully.",
-        "demo_accounts": [
-            {
-                "email": consumer.email,
-                "role": "Consumer",
-                "full_name": consumer.full_name,
-                "password": "password123",
-            },
-            {
-                "email": advocate.email,
-                "role": "Legal Advocate",
-                "full_name": advocate.full_name,
-                "password": "password123",
-            },
-        ],
-    }

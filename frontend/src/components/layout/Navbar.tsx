@@ -62,6 +62,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <option value="hi">हिन्दी (Hindi)</option>
                 <option value="ta">தமிழ் (Tamil)</option>
                 <option value="te">తెలుగు (Telugu)</option>
+                <option value="kn">ಕನ್ನಡ (Kannada)</option>
+                <option value="ml">മലയാളം (Malayalam)</option>
               </select>
             </div>
 
@@ -114,7 +116,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors shadow-sm"
               >
                 <LogIn className="w-3.5 h-3.5" />
-                <span>{t.sign_in_demo}</span>
+                <span>{t.sign_in}</span>
               </button>
             )}
           </div>

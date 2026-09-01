@@ -1,0 +1,109 @@
+[
+  {
+    "category": "greetings_and_intro",
+    "intent": "greeting",
+    "patterns": ["hi", "hello", "hey", "good morning", "good evening", "namaste", "who are you", "what can you do"],
+    "response": "Hello! I'm your AI Legal Assistant for consumer rights. I'm here to listen to your concern and help you figure out the best legal steps under the Consumer Protection Act, 2019. Whether you received a damaged product, faced an illegal bank charge, or had a flight cancelled, I'm by your side. What kind of issue are you facing today?",
+    "sample_questions": [
+      "Hi, can you help me?",
+      "Who are you and what do you do?",
+      "Namaste, I need help with a complaint."
+    ]
+  },
+  {
+    "category": "e-commerce",
+    "intent": "defective_product_refusal",
+    "patterns": ["defective", "damaged", "return rejected", "refused refund", "seller not responding", "amazon", "flipkart", "meesho"],
+    "response": "I completely understand how frustrating it is when a seller refuses to replace or refund a defective item! Under the **Consumer Protection (E-Commerce) Rules, 2020**, online platforms cannot refuse legitimate returns for defective goods or charge arbitrary cancellation fees.\n\nHere is how we can tackle this together:\n1. **First step**: Submit a formal grievance on the National Consumer Helpline (NCH / 1915).\n2. **If unresolved**: File a complaint before the **District Consumer Disputes Redressal Commission** under Section 35 of the CPA 2019.\n\nCould you tell me the **merchant's name**, **purchase amount**, and **when you placed the order**? That will help me build your case!",
+    "sample_questions": [
+      "I bought a TV on Amazon and it came broken. They refuse to take it back!",
+      "Flipkart rejected my refund request for a damaged phone.",
+      "The seller on Meesho sent me the wrong product and stopped replying."
+    ]
+  },
+  {
+    "category": "e-commerce",
+    "intent": "fake_or_counterfeit",
+    "patterns": ["fake", "counterfeit", "duplicate", "replica", "fraud product"],
+    "response": "Selling counterfeit or duplicate items is a severe violation known as an **Unfair Trade Practice** under Section 2(47) of the Consumer Protection Act, 2019. You are entitled to a 100% refund plus compensation for deception.\n\nTo build a strong case, make sure to save:\n- Screenshots of the original product listing and invoice\n- Unboxing video or photos showing the fake brand/packaging\n- Customer care chat transcripts\n\nWhat item was it, and how much did you pay for it?",
+    "sample_questions": [
+      "I received a duplicate pair of Nike shoes from an online store.",
+      "The laptop delivered to me is fake and missing a warranty card."
+    ]
+  },
+  {
+    "category": "banking",
+    "intent": "unauthorized_transaction",
+    "patterns": ["unauthorized transaction", "money deducted", "atm fail", "fraud debit", "bank deducted money", "otp scam"],
+    "response": "I know how alarming it is to see unauthorized deductions from your bank account! Please act quickly:\n\n1. **Report to your bank immediately** (within 3 days): Under RBI's Limited Liability guidelines, if you inform your bank within 3 days of an unauthorized electronic transaction, **your liability is ZERO**.\n2. **Block your card/net banking** right away via official bank hotline.\n3. **File a cybercrime report** at cybercrime.gov.in or helpline **1930**.\n\nIf the bank refuses to credit your money back within 10 working days, we can file a complaint with the **RBI Banking Ombudsman** or the Consumer Forum for **Deficiency in Service (Section 2(11) CPA 2019)**.\n\nWhich bank is involved, and what was the amount deducted?",
+    "sample_questions": [
+      "Rs 15,000 was debited from my HDFC account without any OTP!",
+      "ATM didn't dispense cash but money got deducted from SBI account.",
+      "Money was taken from my account fraudulently yesterday."
+    ]
+  },
+  {
+    "category": "telecom",
+    "intent": "wrong_billing_or_porting",
+    "patterns": ["telecom", "broadband", "extra charge", "airtel", "jio", "vi", "bsnl", "porting rejected", "recharge failed"],
+    "response": "Unexpected telecom charges or rejected MNP (Mobile Number Portability) requests can be really annoying! Telecom service providers must adhere to TRAI (Telecom Regulatory Authority of India) regulations.\n\nHere is what you should do:\n1. Lodge a complaint with the operator's **Appellate Authority** (details available on their official website).\n2. If unresolved within 30 days, register your grievance on the **NCH Portal (1915)** or file for Deficiency in Service.\n\nCould you share your provider name (e.g., Airtel, Jio) and the exact billing dispute amount?",
+    "sample_questions": [
+      "Airtel charged me extra Rs 800 for international roaming I never activated.",
+      "Jio Fiber service has been down for 2 weeks and they refuse a credit.",
+      "My MNP request was unfairly rejected by Vi."
+    ]
+  },
+  {
+    "category": "airline",
+    "intent": "flight_cancellation_lost_baggage",
+    "patterns": ["flight", "airline", "indigo", "air india", "baggage lost", "flight cancelled", "refund flight", "denied boarding"],
+    "response": "Flight cancellations and lost luggage can ruin entire travel plans. Under DGCA Civil Aviation Requirements (CAR Section 3, Series M, Part IV):\n\n- **Flight Cancellation**: If cancelled without 2 weeks prior notice, the airline must offer a full refund OR an alternate flight, plus compensation up to ₹10,000 depending on flight duration.\n- **Lost/Damaged Baggage**: Compensation up to ₹20,000 (or ~1000 SDRs for international flights) under the Carriage by Air Act.\n\nWhich airline did you travel with, and what was your flight date?",
+    "sample_questions": [
+      "IndiGo cancelled my flight 2 hours before departure and refused accommodation.",
+      "Air India lost my bag containing important documents and isn't responding.",
+      "I booked a ticket through EaseMyTrip and the airline hasn't refunded ₹12,000."
+    ]
+  },
+  {
+    "category": "housing",
+    "intent": "builder_possession_delay",
+    "patterns": ["builder", "flat", "apartment", "possession delay", "rera", "builder fraud", "maintenance fee"],
+    "response": "Inordinate delays in handing over flat possession cause immense financial strain! Supreme Court of India precedents clearly state that home buyers cannot be made to wait indefinitely for possession.\n\nYour remedies under **RERA** and **CPA 2019**:\n- Claim **100% refund with interest** (usually SBI MCLR + 2%) for delay beyond the promised date.\n- Or claim **monthly delay compensation** for every month of delayed possession.\n- If claim amount is up to ₹50 Lakhs, District Consumer Commission has jurisdiction.\n\nWho is the builder, and when was the promised possession date in your Agreement for Sale?",
+    "sample_questions": [
+      "The builder promised possession in 2022 but the building is still incomplete.",
+      "Builder is demanding illegal extra charges before handing over flat keys."
+    ]
+  },
+  {
+    "category": "faq",
+    "intent": "nch_helpline_info",
+    "patterns": ["what is nch", "1915 helpline", "national consumer helpline", "how to call nch"],
+    "response": "The **National Consumer Helpline (NCH)** is an initiative by the Ministry of Consumer Affairs, Government of India (Toll-Free Number: **1915** or SMS to **8800001915**).\n\nIt acts as a pre-litigation resolution platform where over 80% of consumer grievances get resolved amicably with registered convergence companies without needing court visits! You can also register complaints online at `consumerhelpline.gov.in`.",
+    "sample_questions": [
+      "What is NCH helpline number?",
+      "How does National Consumer Helpline work?",
+      "Should I call 1915 first?"
+    ]
+  },
+  {
+    "category": "faq",
+    "intent": "edaakhil_filing",
+    "patterns": ["edaakhil", "e-daakhil", "how to file online complaint", "consumer court online"],
+    "response": "**e-Daakhil** (`edaakhil.nic.in`) is the official online portal established under CPA 2019 for filing consumer complaints digitally before District, State, and National Consumer Commissions without physically visiting court!\n\n**Steps to File on e-Daakhil:**\n1. Register as a Consumer User with your Aadhaar / Mobile number.\n2. Fill in Complainant & Opposite Party details.\n3. Upload your Complaint Petition (PDF), Affidavit, Evidence (Invoices, Emails), and Fee Receipt.\n4. Pay nominal court fees online (Zero fee for claims up to ₹5 Lakhs!).\n\nWould you like me to draft your legal complaint petition ready for e-Daakhil?",
+    "sample_questions": [
+      "How can I file a case in consumer court online?",
+      "What is e-Daakhil portal?",
+      "Is court fee required for consumer complaints under 5 lakhs?"
+    ]
+  },
+  {
+    "category": "faq",
+    "intent": "compensation_mental_agony",
+    "patterns": ["mental agony", "compensation", "harassment", "litigation cost", "how much compensation"],
+    "response": "Yes! Under the Consumer Protection Act, 2019, consumer commissions routinely award compensation for:\n1. **Financial loss** (refund of principal amount + interest).\n2. **Mental agony & harassment** caused by negligence or deceptive conduct.\n3. **Litigation costs** (lawyer fees, documentation expenses).\n\nWhen calculating mental agony compensation, factors like duration of delay, physical distress, and unresponsiveness of customer care are considered. We will ensure this claim is included in your formal grievance!",
+    "sample_questions": [
+      "Can I ask for compensation for mental stress and harassment?",
+      "How much money can I claim as penalty against the company?"
+    ]
+  }
+]

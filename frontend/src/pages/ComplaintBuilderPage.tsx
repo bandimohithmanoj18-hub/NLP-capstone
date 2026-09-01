@@ -16,13 +16,18 @@ import {
 import apiClient from '../services/api';
 import { ComplaintResponse, EvidenceResponse, PageView } from '../types';
 
+import { translations } from '../utils/translations';
+
 interface ComplaintBuilderPageProps {
   onSelectView: (view: PageView) => void;
+  language?: string;
 }
 
 export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
   onSelectView,
+  language,
 }) => {
+  const t = translations[language || 'en'] || translations['en'];
   const [complaints, setComplaints] = useState<ComplaintResponse[]>([]);
   const [selectedComplaint, setSelectedComplaint] = useState<ComplaintResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -208,14 +213,14 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
         <div>
           <div className="flex items-center space-x-2">
             <h2 className="text-2xl font-bold text-gray-900">
-              Structured Complaint Generator
+              {t.complaint_builder_title}
             </h2>
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-green-100 text-green-800 border border-green-200">
               Milestone 7 Operational
             </span>
           </div>
           <p className="text-sm text-gray-500 mt-1">
-            Synthesize chat triage facts and OCR evidence into a formal legal complaint draft under CPA 2019.
+            {t.complaint_builder_subtitle}
           </p>
         </div>
 
@@ -224,14 +229,14 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
             onClick={handleNewDraft}
             className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-xl text-xs transition-colors"
           >
-            + New Complaint Draft
+            {t.new_complaint_draft}
           </button>
           <button
             onClick={handleGenerateAIDraft}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs flex items-center space-x-1.5 shadow transition-colors"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>AI Draft Legal Prose</span>
+            <span>{t.ai_draft_prose}</span>
           </button>
         </div>
       </div>
@@ -255,36 +260,45 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
         {/* Left List of Drafted Complaints */}
         <div className="lg:col-span-1 bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3">
           <h3 className="font-bold text-gray-900 text-sm">
-            Saved Complaints ({complaints.length})
+            {t.saved_complaints} ({complaints.length})
           </h3>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {complaints.map((c) => {
-              const isSelected = selectedComplaint?.id === c.id;
-              return (
-                <div
-                  key={c.id}
-                  onClick={() => selectComplaintItem(c)}
-                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                    isSelected
-                      ? 'bg-blue-50 border-blue-300 shadow-sm'
-                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                  }`}
-                >
-                  <div className="text-xs font-bold text-gray-900 truncate">
-                    {c.title}
+
+          {loading ? (
+            <div className="p-4 text-center text-xs text-gray-400">Loading complaints...</div>
+          ) : complaints.length === 0 ? (
+            <div className="p-4 text-center text-xs text-gray-400">
+              {t.no_complaints_saved}
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {complaints.map((c) => {
+                const isSelected = selectedComplaint?.id === c.id;
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => selectComplaintItem(c)}
+                    className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                      isSelected
+                        ? 'bg-blue-50 border-blue-300 shadow-sm'
+                        : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className="text-xs font-bold text-gray-900 truncate">
+                      {c.title}
+                    </div>
+                    <div className="flex items-center justify-between mt-1 text-[10px] text-gray-500">
+                      <span className="font-semibold text-blue-700">
+                        ₹{c.claim_amount ? c.claim_amount.toLocaleString('en-IN') : '0'}
+                      </span>
+                      <span className="bg-gray-200 px-1.5 py-0.5 rounded font-mono">
+                        {c.status}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between mt-1 text-[10px] text-gray-500">
-                    <span className="font-semibold text-blue-700">
-                      ₹{c.claim_amount.toLocaleString('en-IN')}
-                    </span>
-                    <span className="bg-gray-200 px-1.5 py-0.5 rounded font-mono">
-                      {c.status}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Right Form Editor */}
@@ -294,7 +308,7 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Complaint Subject / Case Title
+                  {t.complaint_heading}
                 </label>
                 <input
                   type="text"
@@ -307,23 +321,23 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Dispute Forum Jurisdiction
+                  {t.statutory_forum}
                 </label>
                 <select
                   value={forum}
                   onChange={(e) => setForum(e.target.value)}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
                 >
-                  <option value="DISTRICT_COMMISSION">District Commission (up to ₹50L)</option>
-                  <option value="STATE_COMMISSION">State Commission (₹50L - ₹2Cr)</option>
-                  <option value="NCDRC">NCDRC (above ₹2Cr)</option>
-                  <option value="NCH_HELPLINE">NCH Helpline (Pre-Litigation)</option>
+                  <option value="DISTRICT_COMMISSION">{t.district_commission_forum}</option>
+                  <option value="STATE_COMMISSION">{t.state_commission_forum}</option>
+                  <option value="NCDRC">{t.ncdrc_forum}</option>
+                  <option value="NCH_HELPLINE">{t.nch_forum}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Disputed Claim Amount (INR)
+                  {t.claim_amount_inr}
                 </label>
                 <input
                   type="number"
@@ -341,11 +355,11 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
               <div className="p-4 rounded-xl bg-blue-50/40 border border-blue-100 space-y-3">
                 <h4 className="font-bold text-xs text-blue-900 flex items-center space-x-1.5">
                   <UserIcon className="w-4 h-4 text-blue-600" />
-                  <span>Complainant Details</span>
+                  <span>{t.complainant_details}</span>
                 </h4>
                 <div>
                   <label className="block text-[11px] font-semibold text-gray-600 mb-1">
-                    Full Name
+                    {t.full_name}
                   </label>
                   <input
                     type="text"
@@ -357,7 +371,7 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-gray-600 mb-1">
-                    Address
+                    {t.contact_address}
                   </label>
                   <input
                     type="text"
@@ -372,11 +386,11 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
               <div className="p-4 rounded-xl bg-purple-50/40 border border-purple-100 space-y-3">
                 <h4 className="font-bold text-xs text-purple-900 flex items-center space-x-1.5">
                   <Store className="w-4 h-4 text-purple-600" />
-                  <span>Opposite Party (Merchant) Details</span>
+                  <span>{t.opposite_party_details}</span>
                 </h4>
                 <div>
                   <label className="block text-[11px] font-semibold text-gray-600 mb-1">
-                    Company / Merchant Name
+                    {t.merchant_company}
                   </label>
                   <input
                     type="text"
@@ -388,7 +402,7 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-gray-600 mb-1">
-                    Registered Address / Email
+                    {t.registered_address}
                   </label>
                   <input
                     type="text"
@@ -405,7 +419,7 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
               <div className="flex items-center justify-between">
                 <h4 className="font-bold text-xs text-purple-900 flex items-center space-x-1.5">
                   <FileText className="w-4 h-4 text-purple-600" />
-                  <span>Attach OCR Evidence from Vault</span>
+                  <span>{t.attach_evidence_from_vault}</span>
                 </h4>
                 {selectedEvidenceIds.length > 0 && (
                   <button
@@ -413,7 +427,7 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
                     onClick={handleAutoFillFromEvidence}
                     className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-[10px] font-bold transition-colors shadow-sm"
                   >
-                    Auto-fill from Selected
+                    {t.autofill_selected}
                   </button>
                 )}
               </div>
@@ -455,46 +469,43 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
             <div className="space-y-4 pt-3 border-t border-gray-100">
               <div>
                 <label className="block text-xs font-bold text-gray-900 mb-1">
-                  I. Facts of the Case (Chronological Narrative)
+                  I. {t.facts_summary}
                 </label>
                 <textarea
                   rows={4}
                   value={facts}
                   onChange={(e) => setFacts(e.target.value)}
-                  placeholder="Click 'AI Draft Legal Prose' above to auto-generate professional facts..."
                   className="w-full p-3 text-xs font-mono border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none leading-relaxed"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-900 mb-1">
-                  II. Grounds of Relief (Statutory Violations & Unfair Trade Practice)
+                  II. {t.statutory_grounds}
                 </label>
                 <textarea
                   rows={4}
                   value={grounds}
                   onChange={(e) => setGrounds(e.target.value)}
-                  placeholder="Click 'AI Draft Legal Prose' above to auto-generate legal grounds under CPA 2019..."
                   className="w-full p-3 text-xs font-mono border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none leading-relaxed"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-900 mb-1">
-                  III. Relief Sought / Prayer (Refund, Compensation & Costs)
+                  III. {t.relief_claimed}
                 </label>
                 <textarea
                   rows={3}
                   value={relief}
                   onChange={(e) => setRelief(e.target.value)}
-                  placeholder="Click 'AI Draft Legal Prose' above to auto-generate relief sought..."
                   className="w-full p-3 text-xs font-mono border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none leading-relaxed"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-900 mb-1">
-                  IV. Statutory Verification Clause (Affidavit)
+                  IV. {t.verification_clause}
                 </label>
                 <textarea
                   rows={2}
@@ -513,7 +524,7 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
                 className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs flex items-center space-x-2 shadow transition-colors"
               >
                 <Save className="w-4 h-4" />
-                <span>{saving ? 'Saving...' : 'Save Complaint Draft'}</span>
+                <span>{saving ? t.triaging : t.save_draft}</span>
               </button>
 
               <button
@@ -521,7 +532,7 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
                 onClick={() => onSelectView('documents')}
                 className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl text-xs flex items-center space-x-2 shadow transition-colors"
               >
-                <span>Proceed to PDF/DOCX Export</span>
+                <span>{t.my_documents}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

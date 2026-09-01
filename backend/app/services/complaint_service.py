@@ -68,6 +68,8 @@ class ComplaintService:
         query = db.query(Complaint)
         if user_id is not None:
             query = query.filter(Complaint.user_id == user_id)
+        else:
+            query = query.filter(Complaint.user_id.is_(None))
         docs = query.order_by(Complaint.created_at.desc()).all()
         return [ComplaintResponse.model_validate(d) for d in docs]
 

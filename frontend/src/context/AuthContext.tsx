@@ -10,7 +10,6 @@ import {
   registerUser as apiRegister,
   getProfile as apiGetProfile,
   updateProfile as apiUpdateProfile,
-  seedDemoAccounts as apiSeedDemoAccounts,
 } from '../services/api';
 
 interface AuthContextType {
@@ -23,8 +22,6 @@ interface AuthContextType {
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => void;
   updateProfile: (data: UserProfileUpdate) => Promise<User>;
-  loginAsDemoConsumer: () => Promise<void>;
-  loginAsDemoAdvocate: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -118,22 +115,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loginAsDemoConsumer = async () => {
-    await apiSeedDemoAccounts();
-    await login({
-      email: 'consumer@example.com',
-      password: 'password123',
-    });
-  };
-
-  const loginAsDemoAdvocate = async () => {
-    await apiSeedDemoAccounts();
-    await login({
-      email: 'advocate@example.com',
-      password: 'password123',
-    });
-  };
-
   return (
     <AuthContext.Provider
       value={{
@@ -146,8 +127,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         register,
         logout,
         updateProfile,
-        loginAsDemoConsumer,
-        loginAsDemoAdvocate,
         clearError,
       }}
     >

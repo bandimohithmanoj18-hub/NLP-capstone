@@ -63,11 +63,6 @@ export const updateProfile = async (data: UserProfileUpdate): Promise<User> => {
   return response.data;
 };
 
-export const seedDemoAccounts = async (): Promise<{ success: boolean; demo_accounts: any[] }> => {
-  const response = await apiClient.post('/auth/seed');
-  return response.data;
-};
-
 // Milestone 3 Chat & Legal Triage API methods
 export const createChatSession = async (
   title?: string,
@@ -95,10 +90,14 @@ export const sendChatMessage = async (
   content: string,
   language?: string
 ): Promise<ChatMessage> => {
+  const apiKey = localStorage.getItem('ai_api_key') || '';
+  const provider = localStorage.getItem('ai_provider') || 'gemini';
   const response = await apiClient.post<ChatMessage>(`/chat/sessions/${sessionId}/message`, {
     content,
     role: 'user',
     language: language || 'en',
+    api_key: apiKey || undefined,
+    provider: provider,
   });
   return response.data;
 };

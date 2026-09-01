@@ -25,6 +25,8 @@ class ChatMessageCreate(BaseModel):
     content: str = Field(..., min_length=1, description="User prompt or answer to clarifying question")
     role: str = "user"
     language: Optional[str] = "en"
+    api_key: Optional[str] = None
+    provider: Optional[str] = "gemini"  # gemini, openai, ollama, gemma
 
 
 class ChatMessageResponse(BaseModel):

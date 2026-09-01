@@ -6,85 +6,54 @@ from main import app
 client = TestClient(app)
 
 
-def test_seed_demo_accounts():
-    """Verify default demo accounts can be seeded cleanly."""
-    response = client.post("/api/v1/auth/seed")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["success"] is True
-    assert len(data["demo_accounts"]) == 2
-    emails = [acc["email"] for acc in data["demo_accounts"]]
-    assert "consumer@example.com" in emails
-    assert "advocate@example.com" in emails
-
-
-def test_login_demo_consumer():
-    """Verify demo consumer account login returns valid JWT token."""
-    # Ensure seeded
-    client.post("/api/v1/auth/seed")
-
-    login_payload = {
-        "email": "consumer@example.com",
-        "password": "password123",
-    }
-    response = client.post("/api/v1/auth/login", json=login_payload)
-    assert response.status_code == 200
-    data = response.json()
-    assert "access_token" in data
-    assert data["token_type"] == "bearer"
-    assert data["user"]["email"] == "consumer@example.com"
-    assert data["user"]["is_advocate"] is False
-
-
-def test_login_demo_advocate():
-    """Verify demo advocate account login returns valid JWT token and advocate flag."""
-    login_payload = {
-        "email": "advocate@example.com",
-        "password": "password123",
-    }
-    response = client.post("/api/v1/auth/login", json=login_payload)
-    assert response.status_code == 200
-    data = response.json()
-    assert "access_token" in data
-    assert data["user"]["email"] == "advocate@example.com"
-    assert data["user"]["is_advocate"] is True
-
-
-def test_register_new_user():
-    """Verify a new user can register and receive an access token."""
+def test_register_and_login_user():
+    """Verify a user can register and log in with email and password."""
     unique_id = str(uuid.uuid4())[:8]
+    email = f"user_{unique_id}@example.com"
+    pwd = "securepassword123"
+
     register_payload = {
-        "email": f"testconsumer_{unique_id}@example.com",
-        "password": "securepassword123",
+        "email": email,
+        "password": pwd,
         "full_name": "Anita Verma",
         "phone_number": "+91 91234 56789",
         "is_advocate": False,
     }
-    response = client.post("/api/v1/auth/register", json=register_payload)
-    assert response.status_code == 201
-    data = response.json()
-    assert data["user"]["email"] == f"testconsumer_{unique_id}@example.com"
-    assert data["user"]["full_name"] == "Anita Verma"
+    reg_res = client.post("/api/v1/auth/register", json=register_payload)
+    assert reg_res.status_code == 201
+    data = reg_res.json()
+    assert data["user"]["email"] == email
     assert "access_token" in data
+
+    login_payload = {
+        "email": email,
+        "password": pwd,
+    }
+    login_res = client.post("/api/v1/auth/login", json=login_payload)
+    assert login_res.status_code == 200
+    login_data = login_res.json()
+    assert "access_token" in login_data
+    assert login_data["user"]["email"] == email
 
 
 def test_register_duplicate_email():
     """Verify registering with an existing email returns HTTP 400."""
-    register_payload = {
-        "email": "consumer@example.com",
-        "password": "someotherpassword",
-        "full_name": "Duplicate User",
-    }
-    response = client.post("/api/v1/auth/register", json=register_payload)
-    assert response.status_code == 400
-    data = response.json()
+    unique_id = str(uuid.uuid4())[:8]
+    email = f"dup_{unique_id}@example.com"
+    pwd = "password123"
+
+    client.post("/api/v1/auth/register", json={"email": email, "password": pwd, "full_name": "First User"})
+
+    dup_res = client.post("/api/v1/auth/register", json={"email": email, "password": pwd, "full_name": "Duplicate User"})
+    assert dup_res.status_code == 400
+    data = dup_res.json()
     assert "already exists" in data.get("detail", "").lower() or "already exists" in data.get("message", "").lower()
 
 
 def test_login_invalid_password():
     """Verify incorrect password returns HTTP 401 Unauthorized."""
     login_payload = {
-        "email": "consumer@example.com",
+        "email": "nonexistent@example.com",
         "password": "wrongpassword999",
     }
     response = client.post("/api/v1/auth/login", json=login_payload)
@@ -93,19 +62,18 @@ def test_login_invalid_password():
 
 def test_get_current_user_profile():
     """Verify authenticated user can retrieve profile via /auth/me."""
-    # First login to get token
-    login_response = client.post(
-        "/api/v1/auth/login",
-        json={"email": "consumer@example.com", "password": "password123"},
-    )
-    token = login_response.json()["access_token"]
+    unique_id = str(uuid.uuid4())[:8]
+    email = f"profile_{unique_id}@example.com"
+    pwd = "password123"
 
-    # Request /auth/me with Bearer token
+    reg_res = client.post("/api/v1/auth/register", json={"email": email, "password": pwd, "full_name": "Profile User"})
+    token = reg_res.json()["access_token"]
+
     headers = {"Authorization": f"Bearer {token}"}
     me_response = client.get("/api/v1/auth/me", headers=headers)
     assert me_response.status_code == 200
     user_data = me_response.json()
-    assert user_data["email"] == "consumer@example.com"
+    assert user_data["email"] == email
     assert "id" in user_data
 
 
@@ -117,11 +85,12 @@ def test_get_current_user_unauthorized():
 
 def test_update_user_profile():
     """Verify user can update their display name and phone number via PUT /auth/me."""
-    login_response = client.post(
-        "/api/v1/auth/login",
-        json={"email": "consumer@example.com", "password": "password123"},
-    )
-    token = login_response.json()["access_token"]
+    unique_id = str(uuid.uuid4())[:8]
+    email = f"update_{unique_id}@example.com"
+    pwd = "password123"
+
+    reg_res = client.post("/api/v1/auth/register", json={"email": email, "password": pwd, "full_name": "Rajesh Kumar"})
+    token = reg_res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     update_payload = {

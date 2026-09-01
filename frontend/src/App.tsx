@@ -10,11 +10,12 @@ import { NCHGuidancePage } from './pages/NCHGuidancePage';
 import { ComplaintBuilderPage } from './pages/ComplaintBuilderPage';
 import { DocumentsPage } from './pages/DocumentsPage';
 import { AuthModal } from './components/auth/AuthModal';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { getHealthCheck, getSystemInfo } from './services/api';
 import { HealthCheckResponse, SystemInfoResponse, PageView } from './types';
 
 const AppContent: React.FC = () => {
+  const { isAuthenticated } = useAuth();
   const [currentView, setCurrentView] = useState<PageView>('dashboard');
   const [health, setHealth] = useState<HealthCheckResponse | null>(null);
   const [systemInfo, setSystemInfo] = useState<SystemInfoResponse | null>(null);
@@ -143,6 +144,10 @@ const AppContent: React.FC = () => {
     fetchSystemData();
   }, [fetchSystemData]);
 
+  useEffect(() => {
+    setCurrentView('dashboard');
+  }, [isAuthenticated]);
+
   const renderContent = () => {
     switch (currentView) {
       case 'dashboard':
@@ -155,19 +160,19 @@ const AppContent: React.FC = () => {
           />
         );
       case 'profile':
-        return <ProfilePage />;
+        return <ProfilePage language={language} />;
       case 'architecture':
         return <ArchitecturePage />;
       case 'chat':
         return <ChatPage onSelectView={setCurrentView} language={language} />;
       case 'evidence':
-        return <EvidencePage />;
+        return <EvidencePage language={language} />;
       case 'nch_guidance':
-        return <NCHGuidancePage />;
+        return <NCHGuidancePage language={language} />;
       case 'complaint_builder':
-        return <ComplaintBuilderPage onSelectView={setCurrentView} />;
+        return <ComplaintBuilderPage onSelectView={setCurrentView} language={language} />;
       case 'documents':
-        return <DocumentsPage />;
+        return <DocumentsPage language={language} />;
       default:
         return (
           <Dashboard

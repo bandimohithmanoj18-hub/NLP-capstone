@@ -24,10 +24,9 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.PROJECT_NAME} (v{settings.VERSION})...")
     init_db()
     
-    # Seed default demo accounts and RAG corpus
+    # Seed RAG corpus
     db = SessionLocal()
     try:
-        AuthService.seed_default_users(db)
         RAGService.seed_guidelines(db)
     except Exception as e:
         logger.error(f"Error seeding default data: {e}")

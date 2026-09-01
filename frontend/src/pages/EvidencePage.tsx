@@ -17,7 +17,14 @@ import {
 import apiClient from '../services/api';
 import { EvidenceResponse, EvidenceUpdate } from '../types';
 
-export const EvidencePage: React.FC = () => {
+import { translations } from '../utils/translations';
+
+interface EvidencePageProps {
+  language?: string;
+}
+
+export const EvidencePage: React.FC<EvidencePageProps> = ({ language }) => {
+  const t = translations[language || 'en'] || translations['en'];
   const [evidences, setEvidences] = useState<EvidenceResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [uploading, setUploading] = useState<boolean>(false);
@@ -113,19 +120,19 @@ export const EvidencePage: React.FC = () => {
       <div className="border-b border-gray-200 pb-4 flex items-center justify-between">
         <div>
           <div className="flex items-center space-x-2">
-            <h2 className="text-2xl font-bold text-gray-900">OCR & Evidence Vault</h2>
+            <h2 className="text-2xl font-bold text-gray-900">{t.evidence_vault_title}</h2>
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-green-100 text-green-800 border border-green-200">
               Milestone 5 Operational
             </span>
           </div>
           <p className="text-sm text-gray-500 mt-1">
-            Upload purchase receipts, warranty cards, and invoices. Our OCR engine automatically extracts merchant name, date, and invoice amount.
+            {t.evidence_vault_subtitle}
           </p>
         </div>
 
         <label className="cursor-pointer px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-sm flex items-center space-x-2 shadow transition-colors">
           <Upload className={`w-4 h-4 ${uploading ? 'animate-bounce' : ''}`} />
-          <span>{uploading ? 'Processing OCR...' : 'Upload Receipt / PDF'}</span>
+          <span>{uploading ? t.processing_ocr : t.upload_receipt_pdf}</span>
           <input
             type="file"
             accept=".pdf,.png,.jpg,.jpeg"
@@ -164,10 +171,10 @@ export const EvidencePage: React.FC = () => {
       <label className="block border-2 border-dashed border-blue-300 rounded-2xl p-8 text-center bg-blue-50/30 hover:bg-blue-50/70 transition-colors cursor-pointer">
         <Upload className="w-10 h-10 text-blue-500 mx-auto mb-2" />
         <div className="text-sm font-bold text-gray-900">
-          Drop your purchase invoice or receipt here, or click to browse
+          {t.drop_receipt_here}
         </div>
         <p className="text-xs text-gray-500 mt-1">
-          Supports PDF, PNG, JPG, and JPEG. Automated regex OCR extracts Merchant Name, Invoice Number, Date, and Amount in INR.
+          {t.supports_file_types}
         </p>
         <input
           type="file"
@@ -182,14 +189,14 @@ export const EvidencePage: React.FC = () => {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-base font-bold text-gray-900">
-            Uploaded Evidence Documents ({evidences.length})
+            {t.uploaded_evidence_docs} ({evidences.length})
           </h3>
           <button
             onClick={fetchEvidences}
             className="text-xs text-gray-500 hover:text-gray-900 flex items-center space-x-1"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>Refresh Vault</span>
+            <span>{t.refresh_vault}</span>
           </button>
         </div>
 
@@ -197,7 +204,7 @@ export const EvidencePage: React.FC = () => {
           <div className="p-12 text-center text-sm text-gray-400">Loading evidence vault...</div>
         ) : evidences.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400 text-sm">
-            No evidence documents uploaded yet. Click "Upload Receipt / PDF" above to test automated OCR extraction.
+            {t.no_evidence_uploaded}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

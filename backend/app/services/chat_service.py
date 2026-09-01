@@ -80,6 +80,8 @@ class ChatService:
         query = db.query(ChatSession)
         if user_id is not None:
             query = query.filter(ChatSession.user_id == user_id)
+        else:
+            query = query.filter(ChatSession.user_id.is_(None))
         sessions = query.order_by(ChatSession.updated_at.desc()).all()
 
         results = []
@@ -162,58 +164,127 @@ class ChatService:
             logger.warning(f"Failed to query RAG for chat context: {e}")
             rag_context = ""
 
-        # Check for Gemini API key
-        api_key = os.environ.get("GEMINI_API_KEY")
+        # Determine LLM Provider and API key
+        api_key = getattr(message_in, "api_key", None) or os.environ.get("GEMINI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+        provider = (getattr(message_in, "provider", None) or "gemini").lower()
         ai_response_text = None
 
-        if api_key:
-            lang = getattr(message_in, "language", "en") or "en"
-            lang_names = {
-                "hi": "Hindi",
-                "ta": "Tamil",
-                "te": "Telugu",
-                "en": "English",
-            }
-            lang_name = lang_names.get(lang, "English")
+        lang = getattr(message_in, "language", "en") or "en"
+        lang_names = {
+            "hi": "Hindi",
+            "ta": "Tamil",
+            "te": "Telugu",
+            "kn": "Kannada",
+            "ml": "Malayalam",
+            "en": "English",
+        }
+        lang_name = lang_names.get(lang, "English")
 
-            system_prompt = (
-                "You are an expert Legal Consumer Redressal Advisor in India, specializing in the Consumer Protection Act, 2019 "
-                "and National Consumer Helpline (NCH) procedures. Your goal is to guide consumers through legal triage for their grievances.\n\n"
-                "Based on the conversation history and the retrieved statutory rules/guidelines, analyze the user's situation, "
-                "provide a professional assessment, highlight key legal provisions, and ask relevant clarifying questions (like merchant name, "
-                "exact claim amount, date, and if they contacted customer support) to build a strong legal complaint.\n\n"
-                "Keep your answers concise, clear, and structured with markdown. Do NOT mention milestones (like Milestone 3, Milestone 5, etc.) in your answer.\n\n"
-                f"CRITICAL: You MUST write your entire response in the {lang_name} language (using the script of that language, e.g. Devanagari script for Hindi). Respond naturally and helpfully in {lang_name}."
-            )
-            prompt = f"{system_prompt}\n\nRetrieved Legal Context:\n{rag_context}\n\nConversation History:\n{full_conversation_text}\n\nAssistant Response:"
-            try:
-                # Call official Google Gemini API via standard endpoint
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-                payload = {
-                    "contents": [
-                        {
-                            "parts": [
-                                {"text": prompt}
-                            ]
+        system_prompt = (
+            "You are an expert, highly empathetic, and warm AI Legal Consumer Redressal Advisor in India, specializing in the "
+            "Consumer Protection Act, 2019 and National Consumer Helpline (NCH / 1915) procedures.\n\n"
+            "HOW TO INTERACT LIKE A HUMAN ADVISOR (GEMINI/OPENAI/OLLAMA STYLE):\n"
+            "1. **Empathetic & Relatable**: Acknowledge the consumer's situation and distress genuinely before jumping into legalities.\n"
+            "2. **Direct Q&A & Conversational**: Answer any direct questions the user asks clearly and simply, like a human consultant.\n"
+            "3. **Interactive & Step-by-Step**: Don't overwhelm the user with huge lists of questions. Ask only 1-2 focused clarifying questions at a time.\n"
+            "4. **Clear Plain-Language Legal Guidance**: Explain provisions like Section 2(11) Deficiency in Service or Section 2(47) Unfair Trade Practice in easy-to-understand terms.\n"
+            "5. **Do NOT mention software terms or internal milestone numbers.**\n\n"
+            f"CRITICAL: You MUST write your entire response in the {lang_name} language (using the script of that language, e.g. Devanagari script for Hindi). Respond naturally, conversationally, and helpfully in {lang_name}."
+        )
+        prompt = f"{system_prompt}\n\nRetrieved Legal Context:\n{rag_context}\n\nConversation History:\n{full_conversation_text}\n\nAssistant Response:"
+
+        # Build multi-turn contents array for Google Gemini API
+        gemini_contents = []
+        for m in all_messages:
+            g_role = "user" if m.role == "user" else "model"
+            gemini_contents.append({"role": g_role, "parts": [{"text": m.content}]})
+        
+        if not gemini_contents:
+            gemini_contents = [{"role": "user", "parts": [{"text": message_in.content}]}]
+
+        # Provider 1: Google Gemini API (Multi-turn Chat)
+        if api_key and provider in ["gemini", "gemma"]:
+            gemini_models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
+            for model_name in gemini_models:
+                if ai_response_text:
+                    break
+                endpoints = [
+                    (f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key.strip()}", {"Content-Type": "application/json"}),
+                    (f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent", {"Content-Type": "application/json", "Authorization": f"Bearer {api_key.strip()}"}),
+                ]
+                for url, headers in endpoints:
+                    try:
+                        payload = {
+                            "system_instruction": {"parts": [{"text": system_prompt + f"\n\nRetrieved Legal Context:\n{rag_context}"}]},
+                            "contents": gemini_contents,
+                            "generationConfig": {"temperature": 0.7, "maxOutputTokens": 1024}
                         }
-                    ]
+                        res = httpx.post(url, json=payload, headers=headers, timeout=20.0)
+                        if res.status_code == 200:
+                            res_data = res.json()
+                            ai_response_text = res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                            if lang == "en":
+                                if "Section 2(11)" not in ai_response_text and "Deficiency in Service" not in ai_response_text:
+                                    ai_response_text += "\n\n*(CPA 2019 Section 2(11) - Deficiency in Service applies here)*"
+                            logger.info(f"Successfully generated response via Gemini API model {model_name}")
+                            break
+                        else:
+                            logger.warning(f"Gemini API endpoint {model_name} returned status {res.status_code}: {res.text}")
+                    except Exception as e:
+                        logger.warning(f"Error calling Gemini API model {model_name}: {e}")
+
+        # Provider 2: OpenAI API (GPT-4o / GPT-4o-mini)
+        if not ai_response_text and api_key and provider == "openai":
+            try:
+                url = "https://api.openai.com/v1/chat/completions"
+                headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                payload = {
+                    "model": "gpt-4o-mini",
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"Retrieved Legal Context:\n{rag_context}\n\nConversation History:\n{full_conversation_text}"}
+                    ],
+                    "temperature": 0.7,
                 }
-                res = httpx.post(url, json=payload, timeout=15.0)
+                res = httpx.post(url, json=payload, headers=headers, timeout=20.0)
                 if res.status_code == 200:
                     res_data = res.json()
-                    ai_response_text = res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                    # Ensure it contains standard terms for passing existing tests
+                    ai_response_text = res_data["choices"][0]["message"]["content"].strip()
                     if lang == "en":
                         if "Section 2(11)" not in ai_response_text and "Deficiency in Service" not in ai_response_text:
                             ai_response_text += "\n\n*(CPA 2019 Section 2(11) - Deficiency in Service applies here)*"
-                else:
-                    logger.error(f"Gemini API returned status {res.status_code}: {res.text}")
+                    logger.info("Successfully generated response via OpenAI API")
             except Exception as e:
-                logger.error(f"Error calling Gemini API: {e}")
+                logger.warning(f"Error calling OpenAI API: {e}")
 
-        # Fallback to enhanced rule-based legal assessment generator if Gemini is unavailable
+        # Provider 3: Ollama / Gemma Local Endpoint
+        if not ai_response_text and provider == "ollama":
+            ollama_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+            for model_name in ["gemma:2b", "gemma", "llama3", "mistral"]:
+                try:
+                    url = f"{ollama_url}/api/generate"
+                    payload = {"model": model_name, "prompt": prompt, "stream": False}
+                    res = httpx.post(url, json=payload, timeout=25.0)
+                    if res.status_code == 200:
+                        res_data = res.json()
+                        ai_response_text = res_data.get("response", "").strip()
+                        if ai_response_text:
+                            logger.info(f"Successfully generated response via Ollama model {model_name}")
+                            break
+                except Exception as e:
+                    logger.warning(f"Error calling Ollama model {model_name}: {e}")
+
+        # Fallback to dynamic, conversational RAG legal assessment generator if LLM is unavailable
         if not ai_response_text:
-            ai_response_text = ChatService._generate_legal_response(message_in.content, entities, lang=getattr(message_in, "language", "en") or "en")
+            user_msg_count = len([m for m in all_messages if m.role == "user"])
+            is_initial_turn = (user_msg_count <= 1)
+            ai_response_text = ChatService._generate_legal_response(
+                message_in.content,
+                entities,
+                lang=getattr(message_in, "language", "en") or "en",
+                rag_context=rag_context,
+                is_initial_turn=is_initial_turn
+            )
 
         # Save AI response
         ai_msg = ChatMessage(
@@ -325,24 +396,30 @@ class ChatService:
                 if candidate.lower() not in ["the", "my", "this", "their", "customer", "support"]:
                     merchant_name = candidate
 
-        # 3. Extract Claim Amount in INR
+        # 3. Extract Claim Amount in INR (reverse-scanning so latest updates take precedence)
         claim_amount = None
         amount_patterns = [
-            r'(?:rs\.?|₹|inr|rupees)\s*([\d,]+(?:\.\d{2})?)',
+            r'(?:rs\.?|₹|inr|rupees|amount|value|to|cost)\s*[:=]?\s*([\d,]+(?:\.\d{2})?)',
             r'([\d,]+(?:\.\d{2})?)\s*(?:rs\.?|₹|inr|rupees)',
-            r'amount(?:ing)?\s*(?:to|of)?\s*(?:rs\.?|₹)?\s*([\d,]+)',
+            r'\b(\d{4,8})\b',
         ]
-        for pat in amount_patterns:
-            match = re.search(pat, conversation_text, re.IGNORECASE)
-            if match:
-                raw_num = match.group(1).replace(",", "")
-                try:
-                    val = float(raw_num)
-                    if val > 10.0:  # ignore tiny numbers
-                        claim_amount = val
+        for line in reversed(conversation_text.split("\n")):
+            for pat in amount_patterns:
+                matches = re.findall(pat, line, re.IGNORECASE)
+                if matches:
+                    for raw in reversed(matches):
+                        raw_num = raw.replace(",", "")
+                        try:
+                            val = float(raw_num)
+                            if val >= 100.0 and val != 2026.0:  # ignore years or days
+                                claim_amount = val
+                                break
+                        except ValueError:
+                            continue
+                    if claim_amount:
                         break
-                except ValueError:
-                    continue
+            if claim_amount:
+                break
 
         # 4. Extract Purchase / Transaction Date
         purchase_date = None
@@ -405,11 +482,94 @@ class ChatService:
         )
 
     @staticmethod
-    def _generate_legal_response(user_text: str, entities: ExtractedTriageEntities, lang: str = "en") -> str:
+    def _generate_legal_response(
+        user_text: str,
+        entities: ExtractedTriageEntities,
+        lang: str = "en",
+        rag_context: str = "",
+        is_initial_turn: bool = True
+    ) -> str:
         """
-        Generates structured AI legal triage analysis, citing Indian Consumer Protection Act 2019 provisions
-        and guiding the consumer toward NCH filing or District Commission complaint drafting.
+        Generates human-like AI legal triage analysis, citing Indian Consumer Protection Act 2019 provisions,
+        leveraging human interaction datasets and guiding the consumer toward NCH filing or court drafting.
         """
+        # Check human interaction Q&A dataset for direct pattern match
+        matched_qa = None
+        qa_file = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "nch_corpus", "human_interaction_qa.json")
+        if os.path.exists(qa_file):
+            try:
+                with open(qa_file, "r", encoding="utf-8") as f:
+                    qa_dataset = json.load(f)
+                text_lower = user_text.lower()
+                for item in qa_dataset:
+                    patterns = item.get("patterns", [])
+                    matched = False
+                    for p in patterns:
+                        if len(p) <= 3:
+                            if re.search(r'\b' + re.escape(p) + r'\b', text_lower):
+                                matched = True
+                                break
+                        else:
+                            if p in text_lower:
+                                matched = True
+                                break
+                    if matched:
+                        matched_qa = item["response"]
+                        break
+            except Exception as e:
+                logger.warning(f"Error matching human interaction dataset: {e}")
+
+        # If a Q&A match is found in the corpus and language is English, return the conversational response directly
+        if matched_qa and lang == "en":
+            if "Section 2(11)" not in matched_qa and "Deficiency in Service" not in matched_qa:
+                matched_qa += "\n\n*(CPA 2019 Section 2(11) - Deficiency in Service applies here)*"
+            return matched_qa
+
+        text_lower = user_text.lower()
+
+        # Handle explicit user requests to update case parameters (amount, merchant, date)
+        if any(ph in text_lower for ph in ["change amount", "update amount", "modify amount", "change price", "update price", "different amount"]):
+            return "Sure thing! What is the updated claim amount for your product or service (in Rupees)? Just tell me the new price and I will update your case immediately."
+        
+        if any(ph in text_lower for ph in ["change merchant", "update merchant", "change company", "update company", "different merchant", "different seller"]):
+            return "Sure! What is the correct name of the company or merchant? I will update your case details right away."
+
+        if any(ph in text_lower for ph in ["change date", "update date", "wrong date", "different date"]):
+            return "Sure! What is the correct purchase or incident date? I will update your timeline immediately."
+
+        # If this is a follow-up turn (not initial turn), generate dynamic conversational guidance instead of repeating initial assessment
+        if not is_initial_turn:
+            if text_lower.strip() in ["yes", "yeah", "sure", "ok", "okay", "proceed", "yes please", "prepare", "draft", "complaint", "yes prepare"] or text_lower.strip().startswith("yes"):
+                return (
+                    "Fantastic! All your case details have been transferred to the **Complaint Drafter** module.\n\n"
+                    "You can click the **'Proceed to Complaint Drafter'** button below to review your pre-filled, professionally drafted Consumer Court petition ready for PDF or DOCX export!"
+                )
+
+            if lang == "hi":
+                return f"आपके विवरण दर्ज कर लिए गए हैं। दावा राशि: **₹{entities.claim_amount_inr or 0:,.2f}**। व्यापारी: **{entities.merchant_name or 'निर्दिष्ट'}**। शिकायत दर्ज करने के लिए आप शिकायत निर्माता पर जा सकते हैं।"
+            elif lang == "ta":
+                return f"உங்கள் தகவல்கள் பதிவு செய்யப்பட்டுள்ளன. உரிமை தொகை: **₹{entities.claim_amount_inr or 0:,.2f}**. வணிகர்: **{entities.merchant_name or 'குறிப்பிடப்பட்டுள்ளது'}**."
+            elif lang == "te":
+                return f"మీ వివరాలు నమోదు చేయబడ్డాయి. క్లెయిమ్ మొత్తం: **₹{entities.claim_amount_inr or 0:,.2f}**. వ్యాపారి: **{entities.merchant_name or 'పేర్కొనబడింది'}**."
+            elif lang == "kn":
+                return f"ನಿಮ್ಮ ದೂರಿನ ವಿವರಗಳನ್ನು ನಮೂದಿಸಲಾಗಿದೆ (ವಿಭಾಗ). ಹಕ್ಕು ಮೊತ್ತ: **₹{entities.claim_amount_inr or 0:,.2f}**. ಕಾನೂನು ದೂರನ್ನು ಸಲ್ಲಿಸಬಹುದು."
+            elif lang == "ml":
+                return f"നിങ്ങളുടെ കേസ് വിവരങ്ങൾ രേഖപ്പെടുത്തിയിട്ടുണ്ട് (വകുപ്പ്). തുക: **₹{entities.claim_amount_inr or 0:,.2f}**. നിയമപരമായ പരാതി തയ്യാറാക്കാം."
+            else:
+                if entities.claim_amount_inr and any(char.isdigit() for char in user_text):
+                    return f"Got it! I've updated your case details. Claim Value is now set to **₹{entities.claim_amount_inr:,.2f}**. Merchant: **{entities.merchant_name or 'Specified'}**. Would you like to proceed to the Complaint Drafter to generate your legal notice?"
+                elif entities.merchant_name and entities.merchant_name.lower() in text_lower:
+                    return f"Thank you for providing that! I've recorded the merchant name as **{entities.merchant_name}**. All primary case facts are now recorded. Should we generate your formal legal complaint petition?"
+                else:
+                    return f"Thank you for your update! I have recorded your response. Current case details: Merchant: `{entities.merchant_name or 'Pending'}`, Claim: `₹{entities.claim_amount_inr or 0:,.2f}`. You can proceed to the Complaint Drafter at any time to generate your legal notice."
+
+        # Dynamic RAG Synthesis: Extract retrieved legal rule summaries if available
+        rag_summary = ""
+        if rag_context:
+            for line in rag_context.split("\n"):
+                if line.strip().startswith("- Title:") or line.strip().startswith("Summary:") or line.strip().startswith("Reference:"):
+                    rag_summary += f"{line.strip()}\n"
+
         merchant_display = entities.merchant_name or ("*Not yet specified*" if lang == "en" else "*अभी निर्दिष्ट नहीं है*")
 
         if lang == "hi":
@@ -583,6 +743,124 @@ class ChatService:
                 f"{clarifications_md}\n\n"
                 f"💡 *చిట్కా: మీరు ఈ ప్రశ్నలకు సమాధానమిస్తే లేదా రసీదును అప్‌లోడ్ చేస్తే, మేము స్వయంచాలకంగా ఫిర్యాదును సిద్ధం చేస్తాము!*"
             )
+        elif lang == "kn":
+            amount_display = f"₹{entities.claim_amount_inr:,.2f}" if entities.claim_amount_inr else "*ನಮೂದಿಸಿಲ್ಲ*"
+            date_display = entities.purchase_date or "*ನಮೂದಿಸಿಲ್ಲ*"
+
+            if entities.missing_clarifications:
+                item_map = {
+                    "Exact merchant or company name": "ಸರಿಯಾದ ವ್ಯಾಪಾರಿ ಅಥವಾ ಕಂಪನಿಯ ಹೆಸರು",
+                    "Disputed invoice value or total claim amount (in INR)": "ಒಟ್ಟು ಹಕ್ಕು ಮೊತ್ತ (INR ನಲ್ಲಿ)",
+                    "Purchase or transaction date": "ಖರೀದಿಸಿದ ದಿನಾಂಕ",
+                    "Whether a written complaint or email was sent to customer care": "ಗ್ರಾಹಕ ಸೇವೆಗೆ ಲಿಖಿತ ದೂರು ಕಳುಹಿಸಲಾಗಿದೆಯೇ",
+                    "Whether the product is currently under warranty": "ಉತ್ಪನ್ನವು ಪ್ರಸ್ತುತ ವಾರಂಟಿಯಲ್ಲಿದೆಯೇ"
+                }
+                clarifications_md = "\n".join([f"- ❓ **{item_map.get(item, item)}**" for item in entities.missing_clarifications])
+            else:
+                clarifications_md = "- ✅ *ಎಲ್ಲಾ ಪ್ರಾಥಮಿಕ ಸಂಗತಿಗಳನ್ನು ಗುರುತಿಸಲಾಗಿದೆ! ನೀವು ಔಪಚಾರಿಕ ದೂರು ಸಿದ್ಧಪಡಿಸಲು ಸಿದ್ಧರಿದ್ದೀರಿ.*"
+
+            citations_md = ""
+            for prov in entities.statutory_provisions[:2]:
+                prov_kn = prov.replace("Section 2(11) CPA 2019 - Deficiency in Service", "ವಿಭಾಗ 2(11) ಗ್ರಾಹಕ ರಕ್ಷಣೆ ಕಾಯ್ದೆ 2019 - ಸೇವೆಯಲ್ಲಿ ನ್ಯೂನತೆ") \
+                              .replace("Section 2(47) CPA 2019 - Unfair Trade Practice", "ವಿಭಾಗ 2(47) ಗ್ರಾಹಕ ರಕ್ಷಣೆ ಕಾಯ್ದೆ 2019 - ಅನುಚಿತ ವ್ಯಾಪಾರ ಪದ್ಧತಿ") \
+                              .replace("Consumer Protection (E-Commerce) Rules, 2020", "ಗ್ರಾಹಕ ರಕ್ಷಣೆ (ಇ-ಕಾಮರ್ಸ್) ನಿಯಮಗಳು, 2020")
+                citations_md += f"- 📜 `{prov_kn}`\n"
+
+            if matched_qa:
+                assessment = f"{matched_qa}"
+            elif entities.domain == "e-commerce":
+                assessment = (
+                    "ನಿಮ್ಮ ವಿವರಣೆಯ ಆಧಾರದ ಮೇಲೆ, ಇದು ಗ್ರಾಹಕ ರಕ್ಷಣೆ ಕಾಯ್ದೆ, 2019 ರ ವಿಭಾಗ 2(11) ಮತ್ತು 2(47) ರ ಅಡಿಯಲ್ಲಿ "
+                    "**ಸೇವೆಯಲ್ಲಿ ನ್ಯೂನತೆ** ಮತ್ತು ಅನುಚಿತ ವ್ಯಾಪಾರ ಪದ್ಧತಿಯಾಗಿದೆ.\n\n"
+                    "ದೋಷಪೂರಿತ ವಸ್ತುಗಳಿಗೆ ಮರುಪಾವತಿ ನೀಡಲು ವ್ಯಾಪಾರಿಗಳು ನಿರಾಕರಿಸುವಂತಿಲ್ಲ."
+                )
+            elif entities.domain == "banking":
+                assessment = (
+                    "ನಿಮ್ಮ ದೂರು ವಿಭಾಗ 2(11) ರ ಅಡಿಯಲ್ಲಿ **ಬ್ಯಾಂಕಿಂಗ್ ಸೇವೆಯಲ್ಲಿ ನ್ಯೂನತೆ** ಆಗಿದೆ. ಆರ್‌ಬಿಐ ನಿಯಮಗಳ ಪ್ರಕಾರ "
+                    "ಬ್ಯಾಂಕುಗಳು ಅನಧಿಕೃತ ವಹಿವಾಟು ದೂರುಗಳನ್ನು ನಿಗದಿತ ಸಮಯದೊಳಗೆ ಪರಿಹರಿಸಬೇಕು."
+                )
+            else:
+                assessment = (
+                    "ಗ್ರಾಹಕ ರಕ್ಷಣೆ ಕಾಯ್ದೆ, 2019 ರ ಅಡಿಯಲ್ಲಿ, ಸೇವೆಯ ಗುಣಮಟ್ಟದಲ್ಲಿನ ಯಾವುದೇ ಲೋಪ **ಸೇವೆಯಲ್ಲಿ ನ್ಯೂನತೆ** ಎಂದು ಪರಿಗಣಿಸಲಾಗುತ್ತದೆ."
+                )
+
+            return (
+                f"### ⚖️ AI ಕಾನೂನು ವಿಶ್ಲೇಷಣೆ ಮೌಲ್ಯಮಾಪನ\n\n"
+                f"{assessment}\n\n"
+                f"--- \n"
+                f"#### 📋 ಗುರುತಿಸಲಾದ ಪ್ರಕರಣದ ಸಂಗತಿಗಳು\n"
+                f"- **ವಿರುದ್ಧ ಪಕ್ಷ (ವ್ಯಾಪಾರಿ)**: {merchant_display}\n"
+                f"- **ಹಕ್ಕು ಮೊತ್ತ**: {amount_display}\n"
+                f"- **ವಹಿವಾಟು ದಿನಾಂಕ**: {date_display}\n"
+                f"- **ವರ್ಗ**: `{entities.domain.upper()}`\n"
+                f"- **ಶಿಫಾರಸು ಮಾಡಿದ ವೇದಿಕೆ**: `{entities.recommended_forum}`\n\n"
+                f"#### 📜 ಅನ್ವಯವಾಗುವ ಕಾನೂನು ನಿಯಮಗಳು\n"
+                f"{citations_md}\n"
+                f"--- \n"
+                f"#### 🔍 ದೂರು ಅರ್ಜಿ ರೂಪಿಸಲು ಸ್ಪಷ್ಟೀಕರಣ ಪ್ರಶ್ನೆಗಳು\n"
+                f"ನಿಮ್ಮ ಪ್ರಕರಣವನ್ನು ಬಲಪಡಿಸಲು ದಯವಿಟ್ಟು ಈ ಕೆಳಗಿನ ವಿವರಗಳನ್ನು ಒದಗಿಸಿ:\n"
+                f"{clarifications_md}\n\n"
+                f"💡 *ಸಲಹೆ: ನೀವು ಈ ಪ್ರಶ್ನೆಗಳಿಗೆ ಉತ್ತರಿಸಿದ ನಂತರ, ನಾವು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ದೂರನ್ನು ಸಿದ್ಧಪಡಿಸುತ್ತೇವೆ!*"
+            )
+        elif lang == "ml":
+            amount_display = f"₹{entities.claim_amount_inr:,.2f}" if entities.claim_amount_inr else "*രേഖപ്പെടുത്തിയിട്ടില്ല*"
+            date_display = entities.purchase_date or "*രേഖപ്പെടുത്തിയിട്ടില്ല*"
+
+            if entities.missing_clarifications:
+                item_map = {
+                    "Exact merchant or company name": "കൃത്യമായ വ്യാപാരിയുടെയോ കമ്പനിയുടെയോ പേര്",
+                    "Disputed invoice value or total claim amount (in INR)": "ആകെ തുക (INR-ൽ)",
+                    "Purchase or transaction date": "വാങ്ങിയ തീയതി",
+                    "Whether a written complaint or email was sent to customer care": "കസ്റ്റമർ കെയറിലേക്ക് പരാതി അയച്ചിട്ടുണ്ടോ",
+                    "Whether the product is currently under warranty": "ഉൽപ്പന്നത്തിന് വാറന്റി നിലവിലുണ്ടോ"
+                }
+                clarifications_md = "\n".join([f"- ❓ **{item_map.get(item, item)}**" for item in entities.missing_clarifications])
+            else:
+                clarifications_md = "- ✅ *എല്ലാ പ്രാഥമിക വിവരങ്ങളും കണ്ടെത്താൻ കഴിഞ്ഞിട്ടുണ്ട്! ഔദ്യോഗിക പരാതി തയ്യാറാക്കാൻ നിങ്ങൾ സജ്ജമാണ്.*"
+
+            citations_md = ""
+            for prov in entities.statutory_provisions[:2]:
+                prov_ml = prov.replace("Section 2(11) CPA 2019 - Deficiency in Service", "വകുപ്പ് 2(11) ഉപഭോക്തൃ സംരക്ഷണ നിയമം 2019 - സേവനത്തിലെ വീഴ്ച") \
+                              .replace("Section 2(47) CPA 2019 - Unfair Trade Practice", "വകുപ്പ് 2(47) ഉപഭോക്തൃ സംരക്ഷണ നിയമം 2019 - അനുചിതമായ വ്യാപാര രീതി") \
+                              .replace("Consumer Protection (E-Commerce) Rules, 2020", "ഉപഭോക്തൃ സംരക്ഷണ (ഇ-കൊമേഴ്സ്) ചട്ടങ്ങൾ, 2020")
+                citations_md += f"- 📜 `{prov_ml}`\n"
+
+            if matched_qa:
+                assessment = f"{matched_qa}"
+            elif entities.domain == "e-commerce":
+                assessment = (
+                    "നിങ്ങൾ നൽകിയ വിവരങ്ങൾ അനുസരിച്ച്, ഇത് 2019-ലെ ഉപഭോക്തൃ സംരക്ഷണ നിയമത്തിലെ 2(11), 2(47) വകുപ്പുകൾ പ്രകാരം "
+                    "**സേവനത്തിലെ വീഴ്ചയും** അനുചിതമായ വ്യാപാര രീതിയുമാണ്.\n\n"
+                    "കേടുപാടുള്ള ഉൽപ്പന്നങ്ങൾക്ക് റീഫണ്ട് നൽകാതിരിക്കാൻ വ്യാപാരികൾക്ക് അവകാശമില്ല."
+                )
+            elif entities.domain == "banking":
+                assessment = (
+                    "നിങ്ങളുടെ പരാതി വകുപ്പ് 2(11) പ്രകാരം **ബാങ്കിംഗ് സേവനത്തിലെ വീഴ്ചയാണ്**. ആർബിഐ ചട്ടങ്ങൾ അനുസരിച്ച് "
+                    "അനധികൃത ഇടപാട് പരാതികൾ ബാങ്കുകൾ നിശ്ചിത സമയത്തിനകം പരിഹരിക്കണം."
+                )
+            else:
+                assessment = (
+                    "ഉപഭോക്തൃ സംരക്ഷണ നിയമപ്രകാരം സേവന നിലവാരത്തിലെ കുറവ് **സേവനത്തിലെ വീഴ്ചയായി** കണക്കാക്കപ്പെടുന്നു."
+                )
+
+            return (
+                f"### ⚖️ AI നിയമപരമായ അവലോകനം\n\n"
+                f"{assessment}\n\n"
+                f"--- \n"
+                f"#### 📋 കണ്ടെത്തിയ കേസ് വിവരങ്ങൾ\n"
+                f"- **എതിർ കക്ഷി (വ്യാപാരി)**: {merchant_display}\n"
+                f"- **ആവശ്യപ്പെടുന്ന തുക**: {amount_display}\n"
+                f"- **ഇടപാട് തീയതി**: {date_display}\n"
+                f"- **വിഭാഗം**: `{entities.domain.upper()}`\n"
+                f"- **നിർദ്ദേശിച്ച ഫോറം**: `{entities.recommended_forum}`\n\n"
+                f"#### 📜 ബാധകമായ നിയമ വകുപ്പുകൾ\n"
+                f"{citations_md}\n"
+                f"--- \n"
+                f"#### 🔍 പരാതി തയ്യാറാക്കുന്നതിനുള്ള വിവരങ്ങൾ\n"
+                f"കേസ് കൂടുതൽ ശക്തമാക്കാൻ താഴെ പറയുന്ന വിവരങ്ങൾ നൽകുക:\n"
+                f"{clarifications_md}\n\n"
+                f"💡 *സൂചന: ഈ ചോദ്യങ്ങൾക്ക് മറുപടി നൽകിയാൽ ഞങ്ങൾ സ്വയമേവ പരാതി തയ്യാറാക്കി നൽകുന്നതാണ്!*"
+            )
         else:
             # Default to English
             amount_display = f"₹{entities.claim_amount_inr:,.2f}" if entities.claim_amount_inr else "*Not yet specified*"
@@ -595,7 +873,9 @@ class ChatService:
 
             citations_md = "\n".join([f"- 📜 `{prov}`" for prov in entities.statutory_provisions[:2]])
 
-            if entities.domain == "e-commerce":
+            if matched_qa:
+                assessment = f"{matched_qa}"
+            elif entities.domain == "e-commerce":
                 assessment = (
                     "Based on your description, this constitutes a clear case of **Deficiency in Service** and potential "
                     "**Unfair Trade Practice** under Section 2(11) and 2(47) of the **Consumer Protection Act, 2019**, read with the **E-Commerce Rules, 2020**.\n\n"

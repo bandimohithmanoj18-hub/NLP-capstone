@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
 set -e
 
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ROOT_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
+
 echo "=== Testing AI Consumer Complaint & NCH Guidance System ==="
 echo ""
 
 echo "[1/2] Running Backend Tests (Pytest)..."
-cd /home/user/backend
-python3 -m pytest -v
+cd "$ROOT_DIR/backend"
+pytest -v
 echo ""
 
-echo "[2/2] Verifying Frontend TypeScript & Build..."
-cd /home/user/frontend
+echo "[2/2] Verifying Frontend Build..."
+cd "$ROOT_DIR/frontend"
 npm run build
 echo ""
 

@@ -105,6 +105,33 @@ class RAGService:
             },
         ]
 
+        import json
+        import os
+
+        # Seed from human_interaction_qa.json if available
+        qa_file = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "nch_corpus", "human_interaction_qa.json")
+        if os.path.exists(qa_file):
+            try:
+                with open(qa_file, "r", encoding="utf-8") as f:
+                    qa_data = json.load(f)
+                for qa in qa_data:
+                    code = f"QA-{qa['category'].upper()}-{qa['intent'].upper()}"
+                    existing = db.query(NCHGuideline).filter(NCHGuideline.guideline_code == code).first()
+                    if not existing:
+                        doc = NCHGuideline(
+                            guideline_code=code,
+                            title=f"Q&A Guidance: {qa['intent'].replace('_', ' ').title()}",
+                            category=qa.get("category", "general"),
+                            forum_level="NCH_HELPLINE",
+                            summary=f"Conversational Q&A guidance for {qa['intent']}",
+                            full_text=f"{qa['response']}\nSample Questions: {', '.join(qa.get('sample_questions', []))}",
+                            statutory_reference="National Consumer Helpline (1915) & CPA 2019",
+                        )
+                        db.add(doc)
+                db.commit()
+            except Exception as e:
+                logger.warning(f"Could not load human_interaction_qa.json into RAG: {e}")
+
         added = 0
         for item in seed_data:
             existing = db.query(NCHGuideline).filter(NCHGuideline.guideline_code == item["guideline_code"]).first()
@@ -120,6 +147,13 @@ class RAGService:
     def query(db: Session, request_in: RAGQueryRequest) -> RAGQueryResponse:
         """Performs local semantic similarity retrieval across NCH guidelines and statutes."""
         RAGService.seed_guidelines(db)
+
+        if not request_in.query or not request_in.query.strip():
+            return RAGQueryResponse(
+                query=request_in.query or "",
+                results=[],
+                synthesized_answer="Please enter a valid search term or question to query national guidelines."
+            )
 
         query = db.query(NCHGuideline)
         if request_in.category and request_in.category.lower() != "all":
