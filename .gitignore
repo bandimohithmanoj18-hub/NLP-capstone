@@ -8,6 +8,7 @@ __pycache__/
 .local/
 .env
 .env.*
+!.env.example
 
 # Node dependencies & builds
 node_modules/
