@@ -288,9 +288,14 @@ export const NCHGuidancePage: React.FC<NCHGuidancePageProps> = ({ language }) =>
     setLoadingRag(true);
 
     try {
+      const apiKey = localStorage.getItem('ai_api_key') || undefined;
+      const provider = localStorage.getItem('ai_provider') || 'gemini';
+
       const res = await apiClient.post('/rag/query', {
         query: q,
         top_k: 3,
+        api_key: apiKey,
+        provider: provider,
       });
       if (res.data?.results && res.data.results.length > 0) {
         setRagResults(res.data.results);
@@ -603,10 +608,16 @@ export const NCHGuidancePage: React.FC<NCHGuidancePageProps> = ({ language }) =>
                 <BookOpen className="w-5 h-5 text-blue-600" />
                 <span>{t.rag_knowledge_search}</span>
               </h3>
-              <span className="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 self-start">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>RAG Knowledge Engine: Online (CPA 2019 Corpus)</span>
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                  <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Hybrid RAG + Gemini 1.5 Synthesis</span>
+                </span>
+                <span className="inline-flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>Corpus: CPA 2019 • NCH 1915</span>
+                </span>
+              </div>
             </div>
 
             {/* Quick Query Chips for Evaluation Demonstration */}

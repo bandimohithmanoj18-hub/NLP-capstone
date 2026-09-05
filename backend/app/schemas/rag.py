@@ -7,6 +7,8 @@ class RAGQueryRequest(BaseModel):
     query: str = Field(..., min_length=2, description="User legal query or search keywords")
     category: Optional[str] = None
     top_k: int = Field(default=3, ge=1, le=10)
+    api_key: Optional[str] = None
+    provider: Optional[str] = "gemini"
 
 
 class RAGGuidelineResult(BaseModel):

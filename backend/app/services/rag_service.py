@@ -1,3 +1,4 @@
+import os
 import re
 from typing import List, Optional
 from sqlalchemy.orm import Session
@@ -306,7 +307,55 @@ class RAGService:
         # Step 5: Strict Generation & Grounding Prompt Synthesis
         confidence = "HIGH" if results_models and results_models[0].similarity_score >= 0.75 else "MODERATE"
 
-        if results_models:
+        # Check for Gemini / OpenAI generation
+        api_key = getattr(request_in, "api_key", None) or os.environ.get("GEMINI_API_KEY")
+        provider = (getattr(request_in, "provider", None) or "gemini").lower()
+        llm_synth_text = None
+
+        if api_key and results_models:
+            import httpx
+            retrieved_context_str = "\n\n".join([
+                f"[{r.guideline_code}] {r.title}\nForum: {r.forum_level}\nStatute: {r.statutory_reference}\nSummary: {r.summary}\nFull Provision:\n{r.full_text}"
+                for r in results_models
+            ])
+            gemini_prompt = (
+                f"You are the authoritative AI Legal Consumer Redressal Advisor in India specializing in the Consumer Protection Act 2019.\n"
+                f"A consumer has asked the following legal query:\n\"{raw_query}\"\n\n"
+                f"Here are the authoritative statutory law chunks retrieved by the Hybrid RAG engine (BM25 + Dense + RRF):\n"
+                f"---------------------\n"
+                f"{retrieved_context_str}\n"
+                f"---------------------\n\n"
+                f"INSTRUCTIONS:\n"
+                f"1. Synthesize a professional, legally grounded answer explaining how the consumer is protected.\n"
+                f"2. Cite the exact statutory sections retrieved above (e.g. CPA 2019 Section 35, E-Commerce Rules 2020, RBI Zero Liability, etc.).\n"
+                f"3. Specify the exact redressal forum (District Commission, Banking Ombudsman, NCH Helpline, etc.).\n"
+                f"4. Give 3 clear, actionable next steps (Pre-litigation notice, NCH docket, e-Daakhil filing).\n"
+                f"5. Answer ONLY based on Indian consumer law and the provided retrieved context."
+            )
+
+            if provider in ["gemini", "gemma"]:
+                gemini_models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
+                for model_name in gemini_models:
+                    if llm_synth_text:
+                        break
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key.strip()}"
+                    try:
+                        payload = {
+                            "contents": [{"role": "user", "parts": [{"text": gemini_prompt}]}],
+                            "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1024}
+                        }
+                        res = httpx.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=15.0)
+                        if res.status_code == 200:
+                            data = res.json()
+                            llm_synth_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                            llm_synth_text = f"✨ *Synthesized by Google Gemini (Grounded with Hybrid RAG Retrieval)*\n\n" + llm_synth_text
+                            break
+                    except Exception as e:
+                        logger.warning(f"Gemini RAG generation error: {e}")
+
+        if llm_synth_text:
+            synth = llm_synth_text
+        elif results_models:
             primary = results_models[0]
             citations = ", ".join([f"`{r.guideline_code}` ({r.statutory_reference or r.title})" for r in results_models])
 
@@ -339,6 +388,7 @@ class RAGService:
             query_expansion_terms=list(expanded_terms)[:8],
             confidence_level=confidence,
         )
+
 
     @staticmethod
     def get_categories(db: Session) -> RAGCategoryList:
