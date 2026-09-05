@@ -110,6 +110,61 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
   useEffect(() => {
     fetchComplaints();
     fetchEvidences();
+
+    // Check if user navigated from AI Chat with active case facts
+    const activeCaseStr = localStorage.getItem('active_triage_case');
+    if (activeCaseStr) {
+      try {
+        const c = JSON.parse(activeCaseStr);
+        if (c.merchant_name || c.claim_amount) {
+          const userStr = localStorage.getItem('user');
+          const currUser = userStr ? JSON.parse(userStr) : null;
+          const uName = currUser?.full_name || 'Consumer Complainant';
+          const uEmail = currUser?.email || '+91 98765 43210';
+
+          setTitle(c.title ? `${c.title} Draft` : `Formal Complaint against ${c.merchant_name || 'Merchant'}`);
+          setComplainantName(uName);
+          setComplainantContact(uEmail);
+          setOpName(c.merchant_name || 'Opposite Party Merchant');
+          if (c.claim_amount) setClaimAmount(String(c.claim_amount));
+          if (c.recommended_forum) setForum(c.recommended_forum);
+
+          const dateStr = c.purchase_date || 'recently';
+          const amtStr = c.claim_amount ? `₹${parseFloat(c.claim_amount).toLocaleString('en-IN')}/-` : 'valid consideration';
+          const mName = c.merchant_name || 'Opposite Party';
+
+          setFacts(
+            `1. That the Complainant (${uName}) purchased goods / services from the Opposite Party (${mName}) ${dateStr} for ${amtStr}.\n` +
+            `2. That the Opposite Party delivered defective merchandise / rendered deficient service and repeatedly failed to rectify or process refund.\n` +
+            `3. That the Complainant suffered significant financial loss, harassment, and deficiency in service under Consumer Protection Act, 2019.`
+          );
+
+          setGrounds(
+            `A. DEFICIENCY IN SERVICE UNDER SECTION 2(11) OF CPA 2019:\n` +
+            `The Opposite Party failed to provide goods/services of standard quality as promised under law.\n\n` +
+            `B. UNFAIR TRADE PRACTICE UNDER SECTION 2(47) OF CPA 2019:\n` +
+            `Denying rightful refund or replacement for non-delivery or defective items constitutes unfair trade practice.\n\n` +
+            `C. JURISDICTION UNDER SECTION 35 OF CPA 2019:\n` +
+            `The claim value is well within the pecuniary jurisdiction of the District Consumer Commission.`
+          );
+
+          setRelief(
+            `1. Direct the Opposite Party to immediately refund the disputed amount of ${amtStr} along with statutory interest @ 18% p.a.\n` +
+            `2. Award ₹20,000/- towards mental agony and harassment.\n` +
+            `3. Award ₹5,000/- towards legal expenses.`
+          );
+
+          setVerification(
+            `I, ${uName}, the Complainant above named, do hereby verify that paragraphs 1 to 3 of Facts are true to my personal knowledge and belief.`
+          );
+
+          setSelectedComplaint(null); // Fresh active user draft
+          setSuccessMsg(`Loaded case details for ${mName} from your AI consultation!`);
+        }
+      } catch (e) {
+        console.warn('Could not parse active_triage_case from localStorage', e);
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

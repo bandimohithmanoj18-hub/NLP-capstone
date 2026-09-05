@@ -951,8 +951,21 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
         {/* Action Buttons to next milestones */}
         <div className="space-y-2 pt-4 border-t border-gray-200">
           <button
-            onClick={() => onSelectView('complaint_builder')}
-            className="w-full py-2.5 px-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-semibold rounded-xl flex items-center justify-between shadow transition-all"
+            onClick={() => {
+              if (latestEntities) {
+                localStorage.setItem('active_triage_case', JSON.stringify({
+                  merchant_name: latestEntities.merchant_name || '',
+                  claim_amount: latestEntities.claim_amount_inr || '',
+                  purchase_date: latestEntities.purchase_date || '',
+                  recommended_forum: latestEntities.recommended_forum || 'DISTRICT_COMMISSION',
+                  domain: latestEntities.domain || 'general',
+                  statutory_provisions: latestEntities.statutory_provisions || [],
+                  title: activeSession?.title || 'Consumer Grievance Complaint'
+                }));
+              }
+              onSelectView('complaint_builder');
+            }}
+            className="w-full py-2.5 px-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-semibold rounded-xl flex items-center justify-between shadow transition-all cursor-pointer"
           >
             <span>{t.proceed_complaint_builder}</span>
             <ArrowRight className="w-4 h-4" />
