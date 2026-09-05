@@ -38,15 +38,15 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
   const [selectedEvidenceIds, setSelectedEvidenceIds] = useState<number[]>([]);
 
   // Form State
-  const [title, setTitle] = useState<string>('Defective Smartphone Claim');
-  const [complainantName, setComplainantName] = useState<string>('Anita Verma');
-  const [complainantAddress, setComplainantAddress] = useState<string>('Sector 62, Noida, Uttar Pradesh');
-  const [complainantContact, setComplainantContact] = useState<string>('+91 98765 43210');
-  const [opName, setOpName] = useState<string>('Retail Store Services Pvt. Ltd.');
-  const [opAddress, setOpAddress] = useState<string>('Industrial Area Phase II, New Delhi');
-  const [opContact, setOpContact] = useState<string>('grievance@retailmerchant.com');
+  const [title, setTitle] = useState<string>('');
+  const [complainantName, setComplainantName] = useState<string>('');
+  const [complainantAddress, setComplainantAddress] = useState<string>('');
+  const [complainantContact, setComplainantContact] = useState<string>('');
+  const [opName, setOpName] = useState<string>('');
+  const [opAddress, setOpAddress] = useState<string>('');
+  const [opContact, setOpContact] = useState<string>('');
   const [forum, setForum] = useState<string>('DISTRICT_COMMISSION');
-  const [claimAmount, setClaimAmount] = useState<string>('25000');
+  const [claimAmount, setClaimAmount] = useState<string>('');
   const [facts, setFacts] = useState<string>('');
   const [grounds, setGrounds] = useState<string>('');
   const [relief, setRelief] = useState<string>('');
@@ -62,37 +62,8 @@ export const ComplaintBuilderPage: React.FC<ComplaintBuilderPageProps> = ({
         selectComplaintItem(res.data[0]);
       }
     } catch (err) {
-      console.warn('Backend complaints API offline. Providing demo complaint draft.');
-      const demoComplaint: ComplaintResponse = {
-        id: 1,
-        user_id: 101,
-        title: 'Defective Smartphone Claim',
-        complainant_name: 'Anita Verma',
-        complainant_address: 'Sector 62, Noida, Uttar Pradesh',
-        complainant_contact: '+91 98765 43210',
-        opposite_party_name: 'Retail Store Services Pvt. Ltd.',
-        opposite_party_address: 'Industrial Area Phase II, New Delhi',
-        opposite_party_contact: 'grievance@retailmerchant.com',
-        jurisdiction_forum: 'DISTRICT_COMMISSION',
-        claim_amount: 25000,
-        facts:
-          '1. That the Complainant purchased a smartphone from Opposite Party on 15th June 2026 for ₹25,000/-.\n' +
-          '2. That the screen suffered severe display flickers and motherboard failure within 3 days.\n' +
-          '3. That the Opposite Party service center refused replacement citing arbitrary damage policies.',
-        grounds:
-          'A. DEFICIENCY IN SERVICE UNDER SECTION 2(11) OF CPA 2019:\nOpposite party failed to honor express statutory warranty.\n\n' +
-          'B. UNFAIR TRADE PRACTICE UNDER SECTION 2(47) OF CPA 2019:\nOpposite party falsely advertised 7-day hassle-free replacement.',
-        relief_sought:
-          '1. Full refund of ₹25,000/- with 12% interest p.a.\n2. ₹15,000/- towards mental harassment.\n3. ₹5,000/- litigation costs.',
-        verification_clause:
-          'I, Anita Verma, verify that paragraphs 1 to 3 are true to my personal knowledge and belief.',
-        status: 'DRAFT',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        evidences: [],
-      };
-      setComplaints([demoComplaint]);
-      selectComplaintItem(demoComplaint);
+      console.warn('Backend complaints API offline.');
+      setComplaints([]);
     } finally {
       setLoading(false);
     }

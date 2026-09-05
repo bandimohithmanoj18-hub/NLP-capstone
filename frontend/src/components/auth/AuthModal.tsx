@@ -214,39 +214,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             </button>
           </form>
 
-          {/* Quick Demo Access */}
-          <div className="pt-3 border-t border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                ⚡ Instant Demo Sign In (No Backend Required)
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  loginDemo('consumer');
-                  onClose();
-                }}
-                className="py-2 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-800 text-[11px] font-medium rounded-lg border border-blue-200/60 transition-colors flex items-center justify-center space-x-1"
-              >
-                <span>Demo Consumer</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  loginDemo('advocate');
-                  onClose();
-                }}
-                className="py-2 px-2.5 bg-purple-50 hover:bg-purple-100 text-purple-800 text-[11px] font-medium rounded-lg border border-purple-200/60 transition-colors flex items-center justify-center space-x-1"
-              >
-                <span>Demo Advocate</span>
-              </button>
-            </div>
-          </div>
-
           {/* Custom Backend URL Configuration */}
-          <div className="pt-1 border-t border-gray-100 text-left">
+          <div className="pt-3 border-t border-gray-100 text-left">
             <button
               type="button"
               onClick={() => setShowServerConfig(!showServerConfig)}

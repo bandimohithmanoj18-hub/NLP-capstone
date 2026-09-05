@@ -620,24 +620,6 @@ export const NCHGuidancePage: React.FC<NCHGuidancePageProps> = ({ language }) =>
               </div>
             </div>
 
-            {/* Quick Query Chips for Evaluation Demonstration */}
-            <div>
-              <span className="block text-xs font-semibold text-gray-500 mb-2">
-                Evaluator Quick Demo Queries (Click to Test):
-              </span>
-              <div className="flex flex-wrap gap-2">
-                {quickQueries.map((item, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => runRagSearch(undefined, item.q)}
-                    className="text-xs px-3 py-1.5 bg-blue-50/80 hover:bg-blue-100 text-blue-700 rounded-lg border border-blue-200 transition-colors flex items-center space-x-1 font-medium"
-                  >
-                    <span>{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
 
             <form onSubmit={runRagSearch} className="flex items-center space-x-3">
               <div className="relative flex-1">
