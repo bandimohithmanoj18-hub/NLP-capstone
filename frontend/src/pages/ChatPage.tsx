@@ -38,6 +38,7 @@ import apiClient, {
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { translations } from '../utils/translations';
+import { FormattedMessage } from '../components/chat/FormattedMessage';
 
 interface ChatPageProps {
   onSelectView: (view: PageView) => void;
@@ -165,8 +166,8 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
             session_id: 1,
             role: 'assistant',
             content:
-              '👋 **Hello! I am your AI Legal Consumer Redressal Assistant.**\n\n' +
-              'I am trained on the **Consumer Protection Act, 2019**, **National Consumer Helpline guidelines**, and **E-Commerce Rules 2020**.\n\n' +
+              'Hello! I am your AI Legal Consumer Redressal Assistant.\n\n' +
+              'I am trained on the Consumer Protection Act, 2019, National Consumer Helpline guidelines, and E-Commerce Rules 2020.\n\n' +
               'Whether you are dealing with a defective product, unauthorized bank deduction, or flight cancellation, I can help you evaluate your statutory rights and draft formal legal notices. What consumer grievance are you facing today?',
             extracted_entities_json: JSON.stringify({
               domain: 'e-commerce',
@@ -715,7 +716,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ onSelectView, language }) =>
                         </button>
                       </div>
                     )}
-                    <div className="whitespace-pre-wrap font-sans">{msg.content}</div>
+                    <FormattedMessage content={msg.content} isAssistant={isAssistant} />
                   </div>
                 </div>
               );
