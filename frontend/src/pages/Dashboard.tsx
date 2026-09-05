@@ -1,8 +1,5 @@
 import React from 'react';
 import {
-  Server,
-  Database,
-  Cpu,
   BookOpen,
   MessageSquare,
   FileText,
@@ -13,15 +10,13 @@ import { HealthCheckResponse, SystemInfoResponse, PageView } from '../types';
 import { translations } from '../utils/translations';
 
 interface DashboardProps {
-  health: HealthCheckResponse | null;
-  systemInfo: SystemInfoResponse | null;
+  health?: HealthCheckResponse | null;
+  systemInfo?: SystemInfoResponse | null;
   onSelectView: (view: PageView) => void;
   language: string;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
-  health,
-  systemInfo,
   onSelectView,
   language,
 }) => {
@@ -44,59 +39,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="bg-blue-700/60 border border-blue-500/30 text-xs px-3 py-1.5 rounded-full font-semibold uppercase tracking-wider">
               {t.cpa_compliant}
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* System Health & Operational Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-green-100 text-green-700 rounded-lg">
-            <Server className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-xs font-medium text-gray-500">{t.fastapi_backend}</div>
-            <div className="text-lg font-bold text-gray-900">
-              {health ? health.status.toUpperCase() : 'ONLINE'}
-            </div>
-            <div className="text-xs text-gray-400">
-              Version {health?.version || '1.0.0'}
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-blue-100 text-blue-700 rounded-lg">
-            <Database className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-xs font-medium text-gray-500">{t.database_engine}</div>
-            <div className="text-lg font-bold text-gray-900">
-              {health?.services?.database ? health.services.database.toUpperCase() : 'CONNECTED'}
-            </div>
-            <div className="text-xs text-gray-400">SQLite + SQLAlchemy 2.0</div>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-purple-100 text-purple-700 rounded-lg">
-            <Cpu className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-xs font-medium text-gray-500">{t.ai_vector_engine}</div>
-            <div className="text-lg font-bold text-gray-900">READY</div>
-            <div className="text-xs text-gray-400">Local Embeds / FAISS</div>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center space-x-4">
-          <div className="p-3 bg-indigo-100 text-indigo-700 rounded-lg">
-            <BookOpen className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-xs font-medium text-gray-500">{t.national_guidelines}</div>
-            <div className="text-lg font-bold text-gray-900">{t.active_corpora}</div>
-            <div className="text-xs text-gray-400">{t.rag_kb}</div>
           </div>
         </div>
       </div>
