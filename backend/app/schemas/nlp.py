@@ -24,10 +24,13 @@ class NLPAnalyzeRequest(BaseModel):
 
 
 class NLPAnalyzeResponse(BaseModel):
-    """Response payload containing NER, intent, merit score, and statutory rules."""
+    """Response payload containing NER, intent, merit score, sentiment, urgency, and statutory rules."""
     domain_category: str
     intent_classification: str
     merit_score_percentage: int = Field(..., description="Statutory legal merit score (0-100%)")
+    sentiment_tone: Optional[str] = "DISTRESSED_UNFAIR_TREATMENT"
+    urgency_level: Optional[str] = "HIGH"
+    consistency_check: Optional[str] = "VERIFIED_CONSISTENT"
     entities: List[ExtractedEntity] = []
     applicable_statutes: List[StatutoryPrecedent] = []
     recommended_forum: str

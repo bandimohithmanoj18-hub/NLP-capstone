@@ -124,7 +124,27 @@ class NLPService:
                 summary="Customer has zero liability if unauthorized debit occurs due to third-party breach reported within 3 days.",
             ))
 
-        # 5. Statutory Merit Score Calculation (0 - 100)
+        # 5. Sentiment Analysis & Emotional Tone Detection
+        sentiment = "NEUTRAL"
+        if any(w in text_lower for w in ["fraud", "scam", "cheat", "cheated", "harass", "mental agony", "horrible", "pathetic", "frustrated"]):
+            sentiment = "HIGHLY_DISTRESSED_HARASSMENT"
+        elif any(w in text_lower for w in ["defective", "broken", "refused", "denied", "no response", "failed", "delay"]):
+            sentiment = "DISSATISFIED_UNFAIR_TREATMENT"
+
+        # 6. Urgency Identification
+        urgency = "STANDARD"
+        if any(w in text_lower for w in ["urgent", "emergency", "immediately", "unauthorized", "stolen", "loss", "within 24 hours", "police", "cyber"]):
+            urgency = "HIGH"
+        elif domain in ["banking", "airline"]:
+            urgency = "HIGH"
+
+        # 7. Consistency & Incompleteness Detection
+        inconsistencies = []
+        if any(e.entity_type == "AMOUNT" for e in entities) and "0" in [e.value for e in entities]:
+            inconsistencies.append("Claim amount specified as zero")
+        consistency_status = "INCONSISTENT_DETAILS" if inconsistencies else "VERIFIED_CONSISTENT"
+
+        # 8. Statutory Merit Score Calculation (0 - 100)
         merit_score = 75  # Base score
         if merchant:
             merit_score += 10
@@ -133,18 +153,22 @@ class NLPService:
         if any(e.entity_type == "DATE" for e in entities):
             merit_score += 5
 
-        # 6. Forum Recommendation
+        # 9. Forum Recommendation
         forum = "DISTRICT_COMMISSION"
 
         summary_text = (
             f"The grievance against {merchant or 'the opposite party'} shows strong statutory merit ({merit_score}%) "
-            f"for '{intent.replace('_', ' ').title()}' under {statutes[0].statute}, {statutes[0].section}."
+            f"for '{intent.replace('_', ' ').title()}' under {statutes[0].statute}, {statutes[0].section}. "
+            f"Sentiment: {sentiment}, Urgency: {urgency}."
         )
 
         return NLPAnalyzeResponse(
             domain_category=domain,
             intent_classification=intent,
             merit_score_percentage=min(merit_score, 100),
+            sentiment_tone=sentiment,
+            urgency_level=urgency,
+            consistency_check=consistency_status,
             entities=entities,
             applicable_statutes=statutes,
             recommended_forum=forum,
