@@ -30,9 +30,10 @@ class OCRService:
     ) -> EvidenceResponse:
         settings.ensure_directories()
 
+        import time
         filename = file.filename or "uploaded_evidence.pdf"
         safe_filename = filename.replace(" ", "_").replace("..", "_")
-        target_path = settings.UPLOADS_DIR / f"{user_id or 'guest'}_{safe_filename}"
+        target_path = settings.UPLOADS_DIR / f"{user_id or 'guest'}_{int(time.time())}_{safe_filename}"
 
         content = file.file.read()
         with open(target_path, "wb") as f:

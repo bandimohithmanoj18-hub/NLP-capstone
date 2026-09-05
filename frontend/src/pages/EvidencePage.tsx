@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   FileText,
   Upload,
@@ -28,8 +28,10 @@ export const EvidencePage: React.FC<EvidencePageProps> = ({ language }) => {
   const [evidences, setEvidences] = useState<EvidenceResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [uploading, setUploading] = useState<boolean>(false);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Modal view for raw OCR text
   const [selectedEvidence, setSelectedEvidence] = useState<EvidenceResponse | null>(null);
@@ -55,11 +57,8 @@ export const EvidencePage: React.FC<EvidencePageProps> = ({ language }) => {
     fetchEvidences();
   }, []);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    const file = files[0];
+  const processFile = async (file: File) => {
+    if (!file) return;
     const formData = new FormData();
     formData.append('file', file);
 
@@ -67,16 +66,41 @@ export const EvidencePage: React.FC<EvidencePageProps> = ({ language }) => {
     setErrorMsg(null);
     setSuccessMsg(null);
     try {
-      const res = await apiClient.post('/ocr/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const res = await apiClient.post('/ocr/upload', formData);
       setSuccessMsg(`Uploaded and OCR parsed: ${file.name}`);
+      if (res.data?.evidence) {
+        setEvidences((prev) => [
+          res.data.evidence,
+          ...prev.filter((item) => item.id !== res.data.evidence.id),
+        ]);
+      }
       await fetchEvidences();
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.detail || 'Failed to upload and parse evidence file.');
+      const detail = err.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : err.message || 'Failed to upload and parse evidence file.';
+      setErrorMsg(msg);
     } finally {
       setUploading(false);
-      if (e.target) e.target.value = '';
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    await processFile(files[0]);
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (uploading) return;
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      await processFile(files[0]);
     }
   };
 
@@ -118,6 +142,16 @@ export const EvidencePage: React.FC<EvidencePageProps> = ({ language }) => {
 
   return (
     <div className="space-y-6 max-w-6xl">
+      {/* Hidden file input controlled by both buttons and drop zone */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.png,.jpg,.jpeg"
+        onChange={handleFileUpload}
+        disabled={uploading}
+        className="hidden"
+      />
+
       <div className="border-b border-gray-200 pb-4 flex items-center justify-between">
         <div>
           <div className="flex items-center space-x-2">
@@ -131,17 +165,14 @@ export const EvidencePage: React.FC<EvidencePageProps> = ({ language }) => {
           </p>
         </div>
 
-        <label className="cursor-pointer px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-sm flex items-center space-x-2 shadow transition-colors">
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="cursor-pointer px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold rounded-xl text-sm flex items-center space-x-2 shadow transition-colors"
+        >
           <Upload className={`w-4 h-4 ${uploading ? 'animate-bounce' : ''}`} />
           <span>{uploading ? t.processing_ocr : t.upload_receipt_pdf}</span>
-          <input
-            type="file"
-            accept=".pdf,.png,.jpg,.jpeg"
-            onChange={handleFileUpload}
-            disabled={uploading}
-            className="hidden"
-          />
-        </label>
+        </button>
       </div>
 
       {successMsg && (
@@ -168,23 +199,39 @@ export const EvidencePage: React.FC<EvidencePageProps> = ({ language }) => {
         </div>
       )}
 
-      {/* Upload Drop Zone Banner */}
-      <label className="block border-2 border-dashed border-blue-300 rounded-2xl p-8 text-center bg-blue-50/30 hover:bg-blue-50/70 transition-colors cursor-pointer">
-        <Upload className="w-10 h-10 text-blue-500 mx-auto mb-2" />
+      {/* Upload Drop Zone Banner with HTML5 drag and drop */}
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsDragging(true);
+        }}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsDragging(true);
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsDragging(false);
+        }}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+        className={`block border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${
+          isDragging
+            ? 'border-blue-500 bg-blue-100/70 shadow-md scale-[1.01]'
+            : 'border-blue-300 bg-blue-50/30 hover:bg-blue-50/70'
+        }`}
+      >
+        <Upload className={`w-10 h-10 text-blue-500 mx-auto mb-2 ${uploading ? 'animate-bounce' : ''}`} />
         <div className="text-sm font-bold text-gray-900">
-          {t.drop_receipt_here}
+          {uploading ? t.processing_ocr : t.drop_receipt_here}
         </div>
         <p className="text-xs text-gray-500 mt-1">
           {t.supports_file_types}
         </p>
-        <input
-          type="file"
-          accept=".pdf,.png,.jpg,.jpeg"
-          onChange={handleFileUpload}
-          disabled={uploading}
-          className="hidden"
-        />
-      </label>
+      </div>
 
       {/* Evidence Grid */}
       <div className="space-y-3">
