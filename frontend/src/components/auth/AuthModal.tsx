@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Lock, Mail, User as UserIcon, Phone, Scale } from 'lucide-react';
+import { X, Lock, Mail, User as UserIcon, Phone, Scale, Server, Check } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 interface AuthModalProps {
@@ -8,7 +8,7 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
-  const { login, register, loading, error, clearError } = useAuth();
+  const { login, register, loginDemo, loading, error, clearError } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
 
@@ -20,7 +20,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [isAdvocate, setIsAdvocate] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Server URL config state
+  const [showServerConfig, setShowServerConfig] = useState(false);
+  const [serverUrl, setServerUrl] = useState(localStorage.getItem('custom_api_url') || '');
+  const [urlSaved, setUrlSaved] = useState(false);
+
   if (!isOpen) return null;
+
+  const handleSaveServerUrl = () => {
+    if (serverUrl.trim()) {
+      localStorage.setItem('custom_api_url', serverUrl.trim());
+    } else {
+      localStorage.removeItem('custom_api_url');
+    }
+    setUrlSaved(true);
+    setTimeout(() => setUrlSaved(false), 2000);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,6 +213,76 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               {loading ? 'Processing...' : activeTab === 'login' ? 'Sign In' : 'Create Account'}
             </button>
           </form>
+
+          {/* Quick Demo Access */}
+          <div className="pt-3 border-t border-gray-100">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                ⚡ Instant Demo Sign In (No Backend Required)
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  loginDemo('consumer');
+                  onClose();
+                }}
+                className="py-2 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-800 text-[11px] font-medium rounded-lg border border-blue-200/60 transition-colors flex items-center justify-center space-x-1"
+              >
+                <span>Demo Consumer</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  loginDemo('advocate');
+                  onClose();
+                }}
+                className="py-2 px-2.5 bg-purple-50 hover:bg-purple-100 text-purple-800 text-[11px] font-medium rounded-lg border border-purple-200/60 transition-colors flex items-center justify-center space-x-1"
+              >
+                <span>Demo Advocate</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Custom Backend URL Configuration */}
+          <div className="pt-1 border-t border-gray-100 text-left">
+            <button
+              type="button"
+              onClick={() => setShowServerConfig(!showServerConfig)}
+              className="text-[11px] text-gray-500 hover:text-blue-600 flex items-center space-x-1 transition-colors"
+            >
+              <Server className="w-3.5 h-3.5" />
+              <span>{showServerConfig ? 'Hide Server Configuration' : 'Connect Live Backend (Render / Railway)'}</span>
+            </button>
+            {showServerConfig && (
+              <div className="mt-2 p-2.5 bg-gray-50 rounded-lg border border-gray-200 space-y-1.5">
+                <label className="block text-[10px] font-semibold text-gray-600">
+                  Backend API URL (FastAPI)
+                </label>
+                <div className="flex space-x-1.5">
+                  <input
+                    type="url"
+                    placeholder="https://nlp-capstone-api.onrender.com"
+                    value={serverUrl}
+                    onChange={(e) => setServerUrl(e.target.value)}
+                    className="flex-1 px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveServerUrl}
+                    className="px-3 py-1.5 bg-gray-800 hover:bg-black text-white text-xs font-semibold rounded transition-colors flex items-center space-x-1"
+                  >
+                    {urlSaved ? <Check className="w-3.5 h-3.5 text-green-400" /> : null}
+                    <span>{urlSaved ? 'Saved' : 'Save'}</span>
+                  </button>
+                </div>
+                <p className="text-[10px] text-gray-400 leading-tight">
+                  Enter your hosted backend URL. Leave blank to use relative <code>/api/v1</code> or Vercel standalone demo mode.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

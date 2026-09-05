@@ -12,21 +12,29 @@ import {
   ChatMessage,
 } from '../types';
 
-const apiBase = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api/v1`
-  : '/api/v1';
+export const getApiBaseUrl = (): string => {
+  const custom = localStorage.getItem('custom_api_url');
+  if (custom && custom.trim()) {
+    return `${custom.trim().replace(/\/+$/, '')}/api/v1`;
+  }
+  if (import.meta.env.VITE_API_URL) {
+    return `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api/v1`;
+  }
+  return '/api/v1';
+};
 
 const apiClient = axios.create({
-  baseURL: apiBase,
+  baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
   timeout: 10000,
 });
 
-// Intercept requests to automatically inject JWT Bearer token from localStorage
+// Intercept requests to dynamically resolve baseURL and inject JWT Bearer token
 apiClient.interceptors.request.use(
   (config) => {
+    config.baseURL = getApiBaseUrl();
     const token = localStorage.getItem('access_token');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
