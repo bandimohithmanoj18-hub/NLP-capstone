@@ -20,6 +20,10 @@ class RAGGuidelineResult(BaseModel):
     full_text: str
     statutory_reference: Optional[str] = None
     similarity_score: float = 0.95
+    bm25_score: Optional[float] = None
+    semantic_score: Optional[float] = None
+    rrf_score: Optional[float] = None
+    retrieval_method: Optional[str] = "hybrid_bm25_dense_rrf"
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -31,6 +35,9 @@ class RAGQueryResponse(BaseModel):
     retrieved_count: int
     results: List[RAGGuidelineResult]
     synthesized_answer: str
+    retrieval_mode: Optional[str] = "hybrid_rrf"
+    query_expansion_terms: Optional[List[str]] = []
+    confidence_level: Optional[str] = "HIGH"
 
 
 class RAGCategoryList(BaseModel):
